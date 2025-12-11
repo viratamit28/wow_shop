@@ -26,7 +26,7 @@ export function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
 
     try {
       // 👇 Backend API Call
-      const res = await axios.post('http://localhost:5000/api/user/login', formData);
+      const res = await axios.post('https://wow-shop-9fpg.onrender.com/api/user/login', formData);
       
       // 👇 Context ko batao ki login ho gaya (Token aur User data save karo)
       login(res.data.token, res.data.user);
