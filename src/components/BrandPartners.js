@@ -1,23 +1,23 @@
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
+// Updated data with specific brand colors for the hover effect
 const brands = [
-  { name: "Bosch", logo: "BOSCH", color: "from-red-600 to-red-700" },
-  { name: "Siemens", logo: "SIEMENS", color: "from-teal-600 to-teal-700" },
-  { name: "Hafele", logo: "HÄFELE", color: "from-gray-700 to-gray-800" },
-  { name: "Smeg", logo: "SMEG", color: "from-blue-600 to-blue-700" },
-  { name: "Kaff", logo: "KAFF", color: "from-orange-600 to-orange-700" },
-  { name: "Electrolux", logo: "ELECTROLUX", color: "from-indigo-600 to-indigo-700" },
-  { name: "Faber", logo: "FABER", color: "from-purple-600 to-purple-700" },
-  { name: "Elica", logo: "ELICA", color: "from-green-600 to-green-700" },
-  { name: "Carasyl", logo: "CARASYL", color: "from-cyan-600 to-cyan-700" },
-  { name: "Hindware", logo: "HINDWARE", color: "from-amber-600 to-amber-700" },
-  { name: "Blaupunkt", logo: "BLAUPUNKT", color: "from-blue-800 to-blue-900" },
-  { name: "Samsung", logo: "SAMSUNG", color: "from-blue-500 to-blue-600" },
-  { name: "LG", logo: "LG", color: "from-red-500 to-red-600" },
-  { name: "Whirlpool", logo: "WHIRLPOOL", color: "from-green-500 to-green-600" },
-  { name: "IFB", logo: "IFB", color: "from-purple-500 to-purple-600" },
-  { name: "Miele", logo: "MIELE", color: "from-gray-600 to-gray-700" },
+  { name: "Bosch", label: "BOSCH", hoverColor: "hover:text-red-600" },
+  { name: "Siemens", label: "SIEMENS", hoverColor: "hover:text-teal-600" },
+  { name: "Hafele", label: "HÄFELE", hoverColor: "hover:text-red-700" },
+  { name: "Smeg", label: "SMEG", hoverColor: "hover:text-neutral-800" },
+  { name: "Kaff", label: "KAFF", hoverColor: "hover:text-orange-600" },
+  { name: "Electrolux", label: "Electrolux", hoverColor: "hover:text-blue-900" },
+  { name: "Faber", label: "FABER", hoverColor: "hover:text-red-600" },
+  { name: "Elica", label: "elica", hoverColor: "hover:text-neutral-800" },
+  { name: "Carysil", label: "CARYSIL", hoverColor: "hover:text-red-600" },
+  { name: "Hindware", label: "hindware", hoverColor: "hover:text-red-600" },
+  { name: "Blaupunkt", label: "BLAUPUNKT", hoverColor: "hover:text-blue-600" },
+  { name: "Samsung", label: "SAMSUNG", hoverColor: "hover:text-blue-700" },
+  { name: "LG", label: "LG", hoverColor: "hover:text-pink-600" },
+  { name: "Whirlpool", label: "Whirlpool", hoverColor: "hover:text-yellow-500" },
+  { name: "IFB", label: "IFB", hoverColor: "hover:text-red-600" },
+  { name: "Miele", label: "Miele", hoverColor: "hover:text-red-700" },
 ];
 
 export function BrandPartners() {
@@ -26,7 +26,7 @@ export function BrandPartners() {
   const containerRef = useRef(null);
   const animationRef = useRef(null);
 
-  // Duplicate brands for seamless loop
+  // Triple duplication ensures smooth infinite scroll even on large screens
   const duplicatedBrands = [...brands, ...brands, ...brands];
 
   useEffect(() => {
@@ -36,21 +36,20 @@ export function BrandPartners() {
     const container = containerRef.current;
     let animationFrame;
     let position = 0;
-    const speed = 0.5; // pixels per frame - adjust for speed
+    const speed = 0.6; // Slightly faster for a modern feel
 
     const animate = () => {
       if (!isPaused) {
         position -= speed;
-        
-        // Reset position when scrolled completely through one set of duplicated brands
-        const singleSetWidth = container.scrollWidth / 3;
+
+        // Reset logic: seamless loop
+        const singleSetWidth = slider.scrollWidth / 3;
         if (Math.abs(position) >= singleSetWidth) {
           position = 0;
         }
 
-        slider.style.transform = `translateX(${position}px)`;
+        slider.style.transform = `translate3d(${position}px, 0, 0)`;
       }
-      
       animationFrame = requestAnimationFrame(animate);
     };
 
@@ -58,133 +57,76 @@ export function BrandPartners() {
     animate();
 
     return () => {
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
-      }
+      if (animationFrame) cancelAnimationFrame(animationFrame);
     };
   }, [isPaused]);
 
-  // Manual navigation functions
-  const nextSlide = () => {
-    if (sliderRef.current) {
-      const slider = sliderRef.current;
-      const currentTransform = slider.style.transform;
-      const currentX = currentTransform ? parseInt(currentTransform.match(/translateX\(([-\d.]+)px\)/)?.[1] || '0') : 0;
-      const slideAmount = 200; // Adjust this value based on your card width
-      
-      slider.style.transition = 'transform 0.5s ease-in-out';
-      slider.style.transform = `translateX(${currentX - slideAmount}px)`;
-      
-      setTimeout(() => {
-        slider.style.transition = '';
-      }, 500);
-    }
-  };
-
-  const prevSlide = () => {
-    if (sliderRef.current) {
-      const slider = sliderRef.current;
-      const currentTransform = slider.style.transform;
-      const currentX = currentTransform ? parseInt(currentTransform.match(/translateX\(([-\d.]+)px\)/)?.[1] || '0') : 0;
-      const slideAmount = 200; // Adjust this value based on your card width
-      
-      slider.style.transition = 'transform 0.5s ease-in-out';
-      slider.style.transform = `translateX(${currentX + slideAmount}px)`;
-      
-      setTimeout(() => {
-        slider.style.transition = '';
-      }, 500);
-    }
-  };
-
   return (
-    <section className="py-8 bg-gradient-to-br from-gray-50 to-white overflow-hidden relative">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,teal_1px,transparent_0)] bg-[length:40px_40px]"></div>
-      </div>
+    <div className="relative w-full bg-white border-b border-gray-100">
+      
+      {/* Optional: A subtle top shadow to separate from Hero Section */}
+      <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
 
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-5xl md:text-6xl font-semibold mb-6 text-gray-900">
-            Premium <span className="font-bold bg-gradient-to-r from-orange-600 to-pink-900 bg-clip-text text-transparent">Partner Brands</span>
-          </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-            Experience world-class German engineering, Italian design, and premium Indian brands — all under one roof
+      <div className="max-w-[1920px] mx-auto px-4 py-10 md:py-14">
+        
+        {/* Section Header - Minimalist & centered */}
+        <div className="text-center mb-10">
+          <p className="text-xs md:text-sm font-bold tracking-[0.2em] text-gray-400 uppercase mb-2">
+            Trusted by Global Leaders
           </p>
+          <h3 className="text-xl md:text-2xl font-light text-gray-900">
+            Our Premium <span className="font-semibold">Brand Partners</span>
+          </h3>
         </div>
 
-        {/* Slider Container */}
+        {/* Slider Area with Fade Masks */}
         <div 
-          className="relative mb-12 overflow-visible"
+          className="relative w-full overflow-hidden"
+          ref={containerRef}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
-          ref={containerRef}
         >
-          {/* Navigation Arrows */}
-          <button
-            onClick={prevSlide}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200 shadow-lg flex items-center justify-center hover:bg-white hover:scale-110 transition-all duration-300 group"
-            aria-label="Previous brands"
-          >
-            <ChevronLeft className="h-6 w-6 text-gray-700 group-hover:text-teal-600 transition-colors" />
-          </button>
+          {/* Left Fade Mask */}
+          <div className="absolute top-0 left-0 h-full w-24 md:w-40 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
           
-          <button
-            onClick={nextSlide}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200 shadow-lg flex items-center justify-center hover:bg-white hover:scale-110 transition-all duration-300 group"
-            aria-label="Next brands"
-          >
-            <ChevronRight className="h-6 w-6 text-gray-700 group-hover:text-teal-600 transition-colors" />
-          </button>
+          {/* Right Fade Mask */}
+          <div className="absolute top-0 right-0 h-full w-24 md:w-40 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
 
-          {/* Infinite Slider Track */}
-          <div className="overflow-visible">
-            <div 
-              ref={sliderRef}
-              className="flex gap-6 w-max"
-            >
-              {duplicatedBrands.map((brand, index) => (
-                <div
-                  key={`${brand.name}-${index}`}
-                  className="flex-shrink-0 w-48" // Fixed width for consistent sliding
-                >
-                  <div className="group cursor-pointer hover:shadow-2xl transition-all duration-300 hover:-translate-y-3 border-2 border-gray-200 hover:border-teal-300 bg-white rounded-2xl overflow-hidden relative">
-                    {/* Hover Effect Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-teal-500/0 to-blue-500/0 group-hover:from-teal-500/5 group-hover:to-blue-500/5 transition-all duration-300 rounded-2xl" />
-                    
-                    <div className="p-6 text-center relative z-10">
-                      {/* Brand Logo Container */}
-                      <div className={`h-20 flex items-center justify-center bg-gradient-to-br ${brand.color} rounded-xl mb-4 group-hover:scale-105 transition-transform duration-300 shadow-lg group-hover:shadow-xl`}>
-                        <span className="text-white font-bold tracking-wider text-sm">
-                          {brand.logo}
-                        </span>
-                      </div>
-                      
-                      {/* Brand Name */}
-                      <div className="text-base font-semibold text-gray-800 group-hover:text-gray-900 transition-colors">
-                        {brand.name}
-                      </div>
-                    </div>
-                  </div>
+          {/* The Track */}
+          <div 
+            ref={sliderRef} 
+            className="flex items-center w-max"
+            style={{ willChange: "transform" }}
+          >
+            {duplicatedBrands.map((brand, index) => (
+              <div
+                key={`${brand.name}-${index}`}
+                className="flex-shrink-0 px-8 md:px-12 group cursor-pointer"
+              >
+                <div className="flex flex-col items-center justify-center space-y-3 transition-all duration-500 hover:-translate-y-1">
+                  
+                  {/* Logo Simulation */}
+                  {/* In a real app, replace this text with <img src={brand.logoUrl} /> */}
+                  <span 
+                    className={`
+                      text-3xl md:text-4xl font-bold tracking-tight 
+                      text-gray-300 transition-colors duration-500 
+                      ${brand.hoverColor} 
+                      font-sans
+                    `}
+                    style={{ fontFamily: 'Arial, sans-serif' }} // Placeholder for logo font
+                  >
+                    {brand.label}
+                  </span>
+
+                  {/* Optional: Small Dot on Hover */}
+                  <div className="h-1 w-1 rounded-full bg-transparent group-hover:bg-gray-800 transition-colors duration-300"></div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
-
-
-        {/* CTA Section */}
-        <div className="text-center">
-            <a 
-              href="#" 
-              className="bg-gradient-to-r from-orange-500 via-pink-500 to-rose-500 px-6 py-2.5 text-sm font-medium text-white shadow-lg hover:from-orange-600 hover:via-pink-600 hover:to-rose-600 hover:shadow-rose-500/40 transition inline-flex items-center gap-3 group shadow-lg hover:shadow-xl flex-shrink-0"
-            >
-              Compare All Brands Appliances
-              <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </a>
-        </div>
       </div>
-    </section>
+    </div>
   );
 }

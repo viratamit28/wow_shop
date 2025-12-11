@@ -7,8 +7,10 @@ import { HeroSlider } from '../components/HeroSlider';
 import { BrandPartners } from '../components/BrandPartners';
 import { Categories } from '../components/Categories';
 import KitchenDesign from '../components/KitchenDesign';
-import FreeShippingFeatures from '../components/FreeShippingFeatures';
+// import FreeShippingFeatures from '../components/FreeShippingFeatures';
 import NewsLetter from '../components/LuxuryDemoSection';
+import ComparisonBanner from '../components/ComparisonBanner';
+import { KitchenSizer } from '../components/KitchenSizer';
 
 
 function HomePage() {
@@ -16,10 +18,12 @@ function HomePage() {
     <div>
       <Header />
       <HeroSlider />
-      <FreeShippingFeatures />
-      <KitchenDesign />
+      {/* <FreeShippingFeatures /> */}
       <BrandPartners />
+      <KitchenDesign />
+      <ComparisonBanner />
       <Categories />
+      <KitchenSizer />
       {/* <Testimonials /> */}
       <NewsLetter/>
       <Footer />
