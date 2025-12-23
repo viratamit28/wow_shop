@@ -1,138 +1,146 @@
 import React from "react";
-import { MoveRight, Star } from "lucide-react"; // npm install lucide-react
+import { ArrowUpRight } from "lucide-react";
+import { useNavigate } from "react-router-dom"; // 👇 Import added for navigation
 
-const categories = [
+// Data Structure
+const categoriesData = [
   {
+    id: "ovens",
     name: "Built-in Ovens",
-    count: "45+ Models",
-    popular: true,
-    image: "https://t3.ftcdn.net/jpg/01/87/69/96/240_F_187699611_9ggLLhbG68CTMxn9lgiy8Ocbeg584m33.jpg"
+    className: "md:col-span-2 md:row-span-2", // Large Box
+    image: "https://images.unsplash.com/photo-1626806819282-2c1dc01a5e0c?q=80&w=2070&auto=format&fit=crop",
+    items: ["Built-in Oven", "Steam Combi Oven", "Microwave", "Combi Microwave"]
   },
   {
-    name: "Induction Hobs",
-    count: "38+ Models",
-    popular: true,
-    image: "https://t4.ftcdn.net/jpg/03/32/60/47/240_F_332604715_bJAtd1mDvWn7ERjttANsEsN7PG8xRSNt.jpg"
+    id: "hobs",
+    name: "Premium Hobs",
+    className: "md:col-span-2 md:row-span-1", // Wide Box
+    image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80",
+    items: ["3/4/5 Burner Hobs", "Induction", "Teppanyaki", "Deep Fryer"]
   },
   {
-    name: "Kitchen Hoods",
-    count: "52+ Models",
-    popular: true,
-    image: "https://t3.ftcdn.net/jpg/04/32/15/18/240_F_432151804_IANWohtcbdyJ09js0FvgUHQ3o77blQdu.jpg"
+    id: "hoods",
+    name: "Chimneys",
+    className: "md:col-span-1 md:row-span-2", // Tall Box
+    image: "https://images.unsplash.com/photo-1556909212-d5b604d0c90d?auto=format&fit=crop&q=80",
+    items: ["Wall Mounted", "Island Hood", "Ceiling Mounted", "Downdraft"]
   },
   {
+    id: "refrigerators",
+    name: "Refrigerators",
+    className: "md:col-span-1 md:row-span-1",
+    image: "https://images.unsplash.com/photo-1571175443880-49e1d58b95da?auto=format&fit=crop&q=80",
+    items: ["Freestanding", "Built-in"]
+  },
+  {
+    id: "dishwashers",
     name: "Dishwashers",
-    count: "32+ Models",
-    popular: true,
-    image: "https://t4.ftcdn.net/jpg/01/21/16/83/240_F_121168379_mfQmksxFEcIRZNdL02PhQ5S3VMmiU8z6.jpg"
+    className: "md:col-span-1 md:row-span-1",
+    image: "https://images.unsplash.com/photo-1581622558663-b2e33377dfb2?auto=format&fit=crop&q=80",
+    items: ["Freestanding", "Built-in"]
   },
   {
-    name: "Coffee Machines",
-    count: "24+ Models",
-    popular: false,
-    image: "https://t3.ftcdn.net/jpg/11/49/97/50/240_F_1149975059_6fl8zhmZJNWx9fThKPfyid5L8IgtLnk3.jpg"
+    id: "small-appliances",
+    name: "Countertop",
+    className: "md:col-span-2 md:row-span-1", // Wide Box
+    image: "https://images.unsplash.com/photo-1594385208974-2e75f8d7bb48?auto=format&fit=crop&q=80",
+    items: ["Food Processor", "Mixer Grinder", "Blender", "Toaster", "Kettle"]
   },
   {
-    name: "Chillers",
-    count: "18+ Models",
-    popular: false,
-    image: "https://t3.ftcdn.net/jpg/12/18/35/16/240_F_1218351609_8UhwS2ZSK3lhQjX7C8r9lEvN4p6F7o4g.jpg"
-  },
-  {
-    name: "Microwaves",
-    count: "28+ Models",
-    popular: false,
-    image: "https://t4.ftcdn.net/jpg/09/66/12/45/240_F_966124544_GbQmJ0kBFcnUrXjO6MhZrJeeN9CN76W3.jpg"
-  },
-  {
-    name: "Warming Drawers",
-    count: "16+ Models",
-    popular: false,
-    image: "https://t4.ftcdn.net/jpg/15/95/76/23/240_F_1595762399_uZbPAOIvvSEfIR78PCLMHXVwPqdCYMdG.jpg"
+    id: "washing",
+    name: "Laundry",
+    className: "md:col-span-1 md:row-span-1",
+    image: "https://images.unsplash.com/photo-1626806749707-e44c82eed727?auto=format&fit=crop&q=80",
+    items: ["Washing Machine", "Dryer"]
   }
 ];
 
 export function Categories() {
+  const navigate = useNavigate(); // 👇 Hook initialized
+
   return (
-    <section className="py-24 bg-white" id="categories">
-      <div className="container mx-auto px-6 max-w-7xl">
+    <section className="py-20 bg-black text-white" id="categories">
+      <div className="container mx-auto px-4 max-w-7xl">
         
-        {/* Header Section */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-orange-600 font-bold tracking-[0.2em] text-xs uppercase mb-3 block">
-            Premium Selection
-          </span>
-          <h2 className="text-4xl md:text-5xl font-serif text-gray-900 mb-6">
-            Curated Categories
-          </h2>
-          <p className="text-gray-500 text-lg font-light leading-relaxed">
-            Explore our exclusive range of built-in appliances designed to elevate your culinary experience.
-          </p>
+        {/* Minimal Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 border-b border-white/10 pb-8">
+          <div>
+            <h2 className="text-4xl md:text-7xl font-script tracking-tight mb-2">
+              Our <span className="font-script  text-amber-500">Collection</span>
+            </h2>
+            <p className="text-white/50 max-w-md">
+              Discover built-in excellence designed for the modern culinary artist.
+            </p>
+          </div>
+          <button className="hidden md:flex items-center gap-2 text-sm font-bold uppercase tracking-widest hover:text-amber-500 transition-colors mt-4 md:mt-0">
+            Download Catalogue <ArrowUpRight className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Categories Grid - Tall Catalog Style */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((category) => (
+        {/* The Bento Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 auto-rows-[280px] gap-4">
+          
+          {categoriesData.map((cat) => (
             <div 
-              key={category.name} 
-              className="group relative h-[420px] rounded-xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-500"
+              key={cat.id} 
+              onClick={() => navigate(`/category/${cat.id}`)} // 👇 Click Event
+              className={`relative group rounded-3xl overflow-hidden bg-neutral-900 border border-white/5 cursor-pointer ${cat.className}`}
             >
-              {/* Background Image */}
-              <div className="absolute inset-0 bg-gray-900">
-                <img 
-                  src={category.image} 
-                  alt={category.name}
-                  className="w-full h-full object-cover opacity-90 transition-transform duration-1000 ease-out group-hover:scale-110 group-hover:opacity-100"
-                />
-              </div>
+              {/* Image Layer */}
+              <img 
+                src={cat.image} 
+                alt={cat.name} 
+                className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 group-hover:opacity-40 transition-all duration-700 ease-in-out"
+              />
+              
+              {/* Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
 
-              {/* Gradient Overlay (For Text Readability) */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 transition-opacity duration-300" />
-
-              {/* Top Badges */}
-              <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
-                 {/* Count Badge */}
-                 <span className="bg-white/10 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                    {category.count}
-                 </span>
-
-                 {/* Popular Badge */}
-                 {category.popular && (
-                   <div className="bg-amber-500 text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-lg shadow-amber-500/20">
-                      <Star className="w-3 h-3 fill-black" /> Popular
-                   </div>
-                 )}
-              </div>
-
-              {/* Bottom Content Area */}
-              <div className="absolute bottom-0 left-0 w-full p-6 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+              {/* Content Layer */}
+              <div className="absolute inset-0 p-6 flex flex-col justify-between">
                 
-                {/* Title Line */}
-                <div className="border-l-2 border-amber-500 pl-4 mb-4">
-                   <h3 className="text-2xl font-serif text-white leading-tight">
-                     {category.name}
-                   </h3>
+                {/* Top Right Arrow */}
+                <div className="flex justify-end">
+                  <span className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 group-hover:bg-amber-500 group-hover:text-black transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
+                    <ArrowUpRight className="w-5 h-5" />
+                  </span>
                 </div>
 
-                {/* Hidden Description / Button (Reveals on Hover) */}
-                <div className="overflow-hidden max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 transition-all duration-500 ease-out">
-                   <p className="text-gray-300 text-xs font-light mb-4">
-                      Discover the latest models with advanced technology.
-                   </p>
-                   <div className="flex items-center gap-2 text-amber-500 text-xs font-bold uppercase tracking-widest group-hover:gap-4 transition-all">
-                      Explore Collection <MoveRight className="w-4 h-4" />
-                   </div>
+                {/* Text Content */}
+                <div>
+                  <h3 className="text-2xl md:text-3xl font-serif text-white mb-2 group-hover:translate-y-0 transition-transform duration-300">
+                    {cat.name}
+                  </h3>
+                  
+                  {/* The List (Hidden by default, slides up nicely) */}
+                  <div className="h-0 overflow-hidden group-hover:h-auto transition-all duration-500 ease-in-out">
+                    <div className="pt-2 border-t border-white/20">
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {cat.items.map((item, idx) => (
+                          <span key={idx} className="text-[11px] uppercase tracking-wider border border-white/20 px-2 py-1 rounded-md text-white/80 hover:bg-white hover:text-black transition-colors">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Subtitle (Visible only when NOT hovering) */}
+                  <p className="text-white/50 text-sm group-hover:hidden transition-opacity duration-300">
+                    {cat.items.length} Variants
+                  </p>
                 </div>
               </div>
             </div>
           ))}
-        </div>
 
-        {/* Bottom CTA */}
-        <div className="mt-16 text-center">
-           <button className="px-10 py-4 border border-gray-200 rounded-full font-bold text-sm uppercase tracking-widest hover:bg-black hover:text-white hover:border-black transition-all duration-300">
-              Download Full Catalog
-           </button>
+        </div>
+        
+        {/* Mobile Only Button */}
+        <div className="mt-8 text-center md:hidden">
+            <button className="px-8 py-3 bg-white text-black rounded-full text-xs font-bold uppercase tracking-widest">
+                View Full Catalogue
+            </button>
         </div>
 
       </div>

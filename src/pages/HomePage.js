@@ -19,13 +19,13 @@ function HomePage() {
       <Header />
       <HeroSlider />
       {/* <FreeShippingFeatures /> */}
-      <BrandPartners />
       <KitchenDesign />
-      <ComparisonBanner />
       <Categories />
       <KitchenSizer />
       {/* <Testimonials /> */}
       <NewsLetter/>
+      <BrandPartners />
+      <ComparisonBanner />
       <Footer />
     </div>
   );

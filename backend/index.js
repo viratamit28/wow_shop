@@ -5,33 +5,28 @@ const dotenv = require('dotenv');
 
 // Routes Import
 const authRoute = require('./routes/auth');
-const cartRoute = require('./routes/cart'); // 👈 NEW: Cart Route Import
-const Product = require('./models/Product');
+const cartRoute = require('./routes/cart');
+const productRoute = require('./routes/products');
+const appointmentRoute = require('./routes/appointmentRoutes'); // 👈 1. Yaha ye line add kro
 
 dotenv.config();
 const app = express();
 
+// Middleware
 app.use(express.json());
 app.use(cors());
 
 // DB Connection
-mongoose.connect(process.env.MONGO_URL)
+mongoose.connect(process.env.MONGO_URL || process.env.MONGO_URI)
   .then(() => console.log("MongoDB Atlas Connected"))
-  .catch(err => console.log(err));
+  .catch(err => console.log("DB Connection Error:", err));
 
 // API Routes
 app.use('/api/user', authRoute);
-app.use('/api/cart', cartRoute); // 👈 NEW: Cart Connection
+app.use('/api/cart', cartRoute);
+app.use('/api/products', productRoute);
+app.use('/api/appointments', appointmentRoute); // 👈 2. Aur yaha ye line add kro
 
-// Product Route (Purana wala)
-app.get('/api/products', async (req, res) => {
-  try {
-    const products = await Product.find({});
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ message: "Server Error" });
-  }
-});
-
+// Server Start
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

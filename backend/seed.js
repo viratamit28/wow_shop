@@ -1,249 +1,126 @@
-// backend/seed.js
-
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
 const Product = require('./models/Product');
+require('dotenv').config();
 
-dotenv.config();
+// 👇 Tumhara Direct MongoDB URL
+const MONGO_URI = 'mongodb+srv://keshavkuma001_db_user:amit%4083403613@wow-shopping.xdqimif.mongodb.net/wowshop?retryWrites=true&w=majority&appName=wow-shopping'; 
 
-const products = [
-  // ==================== 1. REFRIGERATORS (Spelling as per your frontend) ====================
+// 👇 SIRF Naye Products (Countertop & Laundry)
+// Note: Maine Fridge/Hob hata diye hain taaki wo duplicate na ho jayein.
+const newProducts = [
+  // --- COUNTERTOP (Category: 'small-appliances') ---
   {
-    name: "Samsung French Door 650L",
-    description: "Premium French Door Refrigerator with AI Energy Mode and large capacity.",
-    price: 85990,
-    category: "Referigerators",
-    image: "https://images.samsung.com/is/image/samsung/p6pim/in/rs76cg8003s9hl/gallery/in-side-by-side-refrigerator-rs76cg8003s9hl-front-silver-537463567?$684_547_PNG$"
-  },
-  {
-    name: "LG InstaView Door-in-Door",
-    description: "Knock twice to see inside without opening the door. Saves energy.",
-    price: 154990,
-    category: "Referigerators",
-    image: "https://www.lg.com/in/images/refrigerators/md07542358/gallery/GC-X257CQES-Refrigerators-Front-View-DZ-01.jpg"
-  },
-  {
-    name: "Whirlpool IntelliFresh 360L",
-    description: "Double door refrigerator with convertible freezer modes.",
-    price: 32990,
-    category: "Referigerators",
-    image: "https://rukminim2.flixcart.com/image/850/1000/xif0q/refrigerator-new/q/z/p/-original-imagp8p54s6j7u7c.jpeg"
-  },
-  {
-    name: "Haier Bottom Mount 320L",
-    description: "Bottom mounted freezer technology for easier access to fridge items.",
-    price: 28500,
-    category: "Referigerators",
-    image: "https://m.media-amazon.com/images/I/51+uQp0W4JL._SX679_.jpg"
-  },
-  {
-    name: "Godrej Eon Velvet 240L",
-    description: "Stylish design with wood finish handle and advanced cooling.",
-    price: 24990,
-    category: "Referigerators",
-    image: "https://5.imimg.com/data5/SELLER/Default/2023/6/313837943/OW/YO/CF/3616335/godrej-refrigerator-500x500.jpg"
-  },
-  {
-    name: "Bosch MaxFlex Convert",
-    description: "German engineering with flexible storage and fresh sense sensors.",
-    price: 52000,
-    category: "Referigerators",
-    image: "https://media.croma.com/image/upload/v1689580554/Croma%20Assets/Large%20Appliances/Refrigerator/Images/262791_0_ztx43h.png"
-  },
-
-  // ==================== 2. HOB (Gas Stoves) ====================
-  {
-    name: "Elica 4 Burner Glass Hob",
-    description: "Premium black glass finish with auto ignition functionality.",
-    price: 12999,
-    category: "Hob",
-    image: "https://m.media-amazon.com/images/I/61k2Xq4sJEL._SX679_.jpg"
-  },
-  {
-    name: "Faber 3 Brass Burner",
-    description: "Heavy duty brass burners perfect for Indian cooking.",
-    price: 8990,
-    category: "Hob",
-    image: "https://m.media-amazon.com/images/I/61+y5y-wLdL._SX679_.jpg"
-  },
-  {
-    name: "Glen Built-in Hob 1074",
-    description: "Spacious layout with forged brass burners and strong pan supports.",
-    price: 18500,
-    category: "Hob",
-    image: "https://m.media-amazon.com/images/I/51r-lC7eD0L._SX679_.jpg"
-  },
-  {
-    name: "Whirlpool Elite Hybrid Hob",
-    description: "Hybrid design that can be used as built-in or free standing.",
-    price: 14500,
-    category: "Hob",
-    image: "https://whirlpoolindia.com/cdn/shop/products/EliteHybridHB3B70D-1_1.jpg"
-  },
-  {
-    name: "Prestige Royale Plus",
-    description: "Schott glass top with gold accents and tri-pin burners.",
-    price: 7800,
-    category: "Hob",
-    image: "https://m.media-amazon.com/images/I/61wQ4s6Z0TL._SX679_.jpg"
-  },
-  {
-    name: "Sunflame Diamond Hob",
-    description: "Toughened glass cooktop with high efficiency brass burners.",
-    price: 6500,
-    category: "Hob",
-    image: "https://m.media-amazon.com/images/I/61H+1K1+c3L._SX679_.jpg"
-  },
-
-  // ==================== 3. OVEN ====================
-  {
-    name: "Samsung Slim Fry Microwave",
-    description: "Enjoy fried food without deep frying. Convection microwave oven.",
-    price: 16500,
-    category: "Oven",
-    image: "https://images.samsung.com/is/image/samsung/in-microwave-oven-convection-mc28h5025vk-mc28h5025vk-tl-frontblack-228337583?$650_519_PNG$"
-  },
-  {
-    name: "LG Charcoal Convection",
-    description: "Charcoal lighting heater for natural smoky flavor in baking.",
-    price: 22990,
-    category: "Oven",
-    image: "https://www.lg.com/in/images/microwave-ovens/md07546681/gallery/MJEN326PK-Microwave-ovens-Front-View-DZ-01.jpg"
-  },
-  {
-    name: "IFB 30L Convection Oven",
-    description: "Rotisserie, fermentation and auto-cook menus included.",
-    price: 14990,
-    category: "Oven",
-    image: "https://m.media-amazon.com/images/I/61x0qO92xBL._SX679_.jpg"
-  },
-  {
-    name: "Morphy Richards OTG",
-    description: "60 Litre Oven Toaster Griller for professional baking.",
-    price: 11500,
-    category: "Oven",
-    image: "https://m.media-amazon.com/images/I/71u-sE+s0RL._SX679_.jpg"
-  },
-  {
-    name: "Bajaj Majesty OTG",
-    description: "Compact OTG for heating, toasting and grilling needs.",
-    price: 4500,
-    category: "Oven",
-    image: "https://m.media-amazon.com/images/I/71S6L7l7FJL._SX679_.jpg"
-  },
-  {
-    name: "Bosch Built-in Oven",
-    description: "Luxury built-in electric oven with 3D hotair technology.",
-    price: 65000,
-    category: "Oven",
-    image: "https://media.croma.com/image/upload/v1708669460/Croma%20Assets/Large%20Appliances/Microwave%20Oven/Images/214300_0_s7g6yq.png"
-  },
-
-  // ==================== 4. SINK ====================
-  {
-    name: "Franke Stainless Steel Sink",
-    description: "High grade 304 stainless steel with satin finish.",
-    price: 5500,
-    category: "Sink",
-    image: "https://m.media-amazon.com/images/I/61N+x+u+w+L._SX679_.jpg"
-  },
-  {
-    name: "Carysil Granite Sink Black",
-    description: "Quartz granite composite sink, scratch and stain resistant.",
+    name: "Pro Food Processor",
+    description: "Multi-function food processor for chopping, slicing, and kneading.",
     price: 12500,
-    category: "Sink",
-    image: "https://m.media-amazon.com/images/I/51w+z+s+u+L._SX679_.jpg"
+    category: "small-appliances",
+    type: "Food Processor",
+    image: "https://images.unsplash.com/photo-1585514691459-7b561c287666?auto=format&fit=crop&q=80",
+    tag: "Best Seller"
   },
   {
-    name: "Nirali Double Bowl Sink",
-    description: "Spacious double bowl sink for separating clean and dirty dishes.",
-    price: 9800,
-    category: "Sink",
-    image: "https://m.media-amazon.com/images/I/61N+x+u+w+L._SX679_.jpg"
+    name: "High Power Blender",
+    description: "Professional grade blender for smoothies and crushing ice.",
+    price: 18000,
+    category: "small-appliances",
+    type: "Blender",
+    image: "https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?auto=format&fit=crop&q=80",
+    tag: "Heavy Duty"
   },
   {
-    name: "Kohler Kitchen Faucet & Sink",
-    description: "Luxury sink kit with pull-down sprayer faucet.",
-    price: 28000,
-    category: "Sink",
-    image: "https://kohler.co.in/cdn/shop/products/24765IN-SD-NA_Hero.jpg"
+    name: "Retro Toaster 4-Slice",
+    description: "Vintage style toaster with defrost and reheat functions.",
+    price: 6500,
+    category: "small-appliances",
+    type: "Toaster",
+    image: "https://images.unsplash.com/photo-1584269631227-2c5d1b7d8d2f?auto=format&fit=crop&q=80",
+    tag: "Stylish"
   },
   {
-    name: "Hindware Kitchen Sink",
-    description: "Matte finish stainless steel, anti-noise technology.",
-    price: 4200,
-    category: "Sink",
-    image: "https://m.media-amazon.com/images/I/61+M+u+w+L._SX679_.jpg"
+    name: "Digital Electric Kettle",
+    description: "Temperature control kettle for perfect tea and coffee.",
+    price: 4500,
+    category: "small-appliances",
+    type: "Kettle",
+    image: "https://images.unsplash.com/photo-1556910103-1c02745a30bf?auto=format&fit=crop&q=80",
+    tag: ""
   },
   {
-    name: "Anupam Square Sink",
-    description: "Modern square design with deep bowl capacity.",
-    price: 7500,
-    category: "Sink",
-    image: "https://m.media-amazon.com/images/I/51w+z+s+u+L._SX679_.jpg"
+    name: "Mixer Grinder 750W",
+    description: "Powerful motor with 3 jars for Indian cooking.",
+    price: 5500,
+    category: "small-appliances",
+    type: "Mixer Grinder",
+    image: "https://images.unsplash.com/photo-1594385208974-2e75f8d7bb48?auto=format&fit=crop&q=80",
+    tag: "Essential"
   },
 
-  // ==================== 5. CHIMNEY ====================
+  // --- LAUNDRY (Category: 'washing') ---
   {
-    name: "Elica Filterless Chimney",
-    description: "Autoclean chimney with motion sensor control.",
-    price: 14999,
-    category: "Chimney",
-    image: "https://m.media-amazon.com/images/I/61A+z+s+u+L._SX679_.jpg"
+    name: "Front Load Washer 8kg",
+    description: "AI Direct Drive motor with steam wash technology.",
+    price: 38000,
+    category: "washing",
+    type: "Washing Machine",
+    image: "https://images.unsplash.com/photo-1626806749707-e44c82eed727?auto=format&fit=crop&q=80",
+    tag: "Best Seller"
   },
   {
-    name: "Faber Hood Zenith",
-    description: "Filterless technology with high suction power 1350 m3/hr.",
-    price: 18990,
-    category: "Chimney",
-    image: "https://m.media-amazon.com/images/I/61N+x+u+w+L._SX679_.jpg"
+    name: "Washer Dryer Combo",
+    description: "Wash and dry in one machine. Perfect for compact spaces.",
+    price: 55000,
+    category: "washing",
+    type: "Washing Machine",
+    image: "https://plus.unsplash.com/premium_photo-1664372599744-607291a12028?auto=format&fit=crop&q=80",
+    tag: "2-in-1"
   },
   {
-    name: "Hindware Nadia",
-    description: "Thermal auto clean kitchen chimney with oil collector cup.",
-    price: 11500,
-    category: "Chimney",
-    image: "https://m.media-amazon.com/images/I/51w+z+s+u+L._SX679_.jpg"
+    name: "Heat Pump Dryer",
+    description: "Energy efficient drying that protects delicate fabrics.",
+    price: 45000,
+    category: "washing",
+    type: "Dryer",
+    image: "https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?auto=format&fit=crop&q=80",
+    tag: "Premium"
   },
   {
-    name: "Glen Curved Glass Chimney",
-    description: "Elegant curved glass design with LED lamps.",
-    price: 9990,
-    category: "Chimney",
-    image: "https://m.media-amazon.com/images/I/61+M+u+w+L._SX679_.jpg"
+    name: "Top Load Washer 7kg",
+    description: "Soft close lid and multiple wash programs.",
+    price: 22000,
+    category: "washing",
+    type: "Washing Machine",
+    image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80",
+    tag: "Value"
   },
   {
-    name: "Kaff Island Chimney",
-    description: "Ceiling mounted island chimney for open kitchens.",
-    price: 35000,
-    category: "Chimney",
-    image: "https://m.media-amazon.com/images/I/61N+x+u+w+L._SX679_.jpg"
-  },
-  {
-    name: "Sunflame Bella",
-    description: "Stainless steel baffle filter chimney.",
-    price: 7500,
-    category: "Chimney",
-    image: "https://m.media-amazon.com/images/I/51w+z+s+u+L._SX679_.jpg"
+    name: "Smart Laundry Tower",
+    description: "Stacked washer and dryer unit with central control panel.",
+    price: 120000,
+    category: "washing",
+    type: "Washing Machine",
+    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80",
+    tag: "Luxury"
   }
 ];
 
 const seedDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URL);
-    console.log("Connected to DB...");
+    console.log("⏳ Connecting to DB...");
+    await mongoose.connect(MONGO_URI);
+    console.log("✅ Connected!");
+
+    // ⚠️ Maine delete wali line hata di hai taaki purana data safe rahe
+    // await Product.deleteMany({}); 
+
+    console.log(`⏳ Appending ${newProducts.length} NEW products (Countertop & Laundry)...`);
     
-    // Purana data saaf karega
-    await Product.deleteMany({});
-    console.log("Old data cleared.");
-
-    // Naya data insert karega
-    await Product.insertMany(products);
-    console.log(`✅ Success! Added ${products.length} products to Database.`);
-
+    // Sirf naye products add honge, purane wahi rahenge
+    await Product.insertMany(newProducts);
+    
+    console.log(`🎉 Success! Added new items without deleting old data.`);
     process.exit();
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error:", err.message);
     process.exit(1);
   }
 };
