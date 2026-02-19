@@ -1,258 +1,230 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useContext } from 'react';
 import axios from 'axios';
-import { AuthContext } from '../context/AuthContext'; // 👇 Auth Context Import
+import { Trash2, Plus, Minus, PhoneCall, Calendar, FileText, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
-export default function CartDetail() {
+// 🔥 CLOUDINARY CONFIG (Image Display Fix ke liye)
+const CLOUDINARY_BASE_URL = "https://res.cloudinary.com/dcljdkqer/image/upload/";
+
+const CartDetail = () => {
+  const { token, refreshCart, removeFromCart } = useContext(AuthContext);
   const navigate = useNavigate();
   
-  // 👇 1. 'refreshCart' bhi nikala taaki Header update ho sake
-  const { token, refreshCart } = useContext(AuthContext); 
-  
-  const [cart, setCart] = useState([]);
+  const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalValue, setTotalValue] = useState(0);
 
-  // Load Cart from Database
+  // 1. Fetch Cart Data
   useEffect(() => {
-    const fetchCart = async () => {
-      if (!token) {
-        setLoading(false);
-        return; 
-      }
-
-      try {
-        const res = await axios.get('http://localhost:5000/api/cart', {
-          headers: { 'auth-token': token }
-        });
-        
-        const formattedCart = res.data.map(item => ({
-          id: item.productId._id,
-          title: item.productId.name,
-          brand: item.productId.brand || "Generic",
-          price: item.productId.price,
-          image: item.productId.image,
-          quantity: item.quantity
-        }));
-
-        setCart(formattedCart);
-      } catch (err) {
-        console.error("Error loading cart:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCart();
   }, [token]);
 
-  // Calculations
-  const calculateTotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const fetchCart = async () => {
+    if(!token) { setLoading(false); return; }
+    try {
+      const res = await axios.get('http://localhost:5000/api/cart', {
+        headers: { 'auth-token': token }
+      });
+      // Formatting data safely
+      const formattedItems = res.data.map(item => ({
+         _id: item._id, 
+         product: item.productId, 
+         quantity: item.quantity
+      }));
+      
+      setCartItems(formattedItems);
+      calculateTotal(formattedItems);
+      setLoading(false);
+    } catch (err) {
+      console.error("Cart error", err);
+      setLoading(false);
+    }
   };
 
-  const calculateTotalItems = () => {
-    return cart.reduce((total, item) => total + item.quantity, 0);
+  // 2. Calculate Total
+  const calculateTotal = (items) => {
+    const total = items.reduce((acc, item) => {
+        // Agar product delete ho gaya ho toh crash na ho
+        if (!item.product) return acc;
+        return acc + ((item.product.price || 0) * item.quantity);
+    }, 0);
+    setTotalValue(total);
   };
 
-  // 👇 2. Update Quantity (Ab Header bhi update hoga)
-  const updateQuantity = async (productId, newQuantity) => {
-    if (newQuantity < 1) return;
+  // 3. Update Quantity
+  const updateQty = async (itemId, newQty) => {
+    if(newQty < 1) return;
+    
+    // Optimistic Update
+    const updatedItems = cartItems.map(item => 
+        item._id === itemId ? { ...item, quantity: newQty } : item
+    );
+    setCartItems(updatedItems);
+    calculateTotal(updatedItems);
 
-    // Optimistic UI Update (Turant dikhao)
-    setCart(prev => prev.map(item => 
-      item.id === productId ? { ...item, quantity: newQuantity } : item
-    ));
-
-    if (token) {
-      try {
-        // Backend API call to update quantity
+    try {
         await axios.post('http://localhost:5000/api/cart/update', 
-          { productId, quantity: newQuantity }, 
-          { headers: { 'auth-token': token } }
+            { itemId, quantity: newQty }, 
+            { headers: { 'auth-token': token } }
         );
-        
-        // 👇 MAGIC LINE: Ye Header aur baki jagah sync karega
-        refreshCart(); 
-
-      } catch (err) {
-        console.error("Failed to update quantity", err);
-      }
-    }
-  };
-
-  // 👇 3. Remove Item (Header Update ke saath)
-  const removeFromCart = async (productId) => {
-    // UI se hatao
-    setCart(prev => prev.filter(item => item.id !== productId));
-
-    if (token) {
-      try {
-        await axios.post('http://localhost:5000/api/cart/remove', 
-          { productId }, 
-          { headers: { 'auth-token': token } }
-        );
-        
-        // 👇 MAGIC LINE: Header turant update hoga
         refreshCart();
-
-      } catch (err) {
-        console.error("Failed to remove item", err);
-      }
+    } catch (err) {
+        console.error("Update failed");
     }
   };
 
-  const clearCart = () => {
-    setCart([]);
-    // Note: Agar backend me clear all ka route banaya ho to yahan call karna
-    // Abhi ke liye UI clear kar rahe hain
+  // 4. Remove Item
+  const handleRemove = async (productId, itemId) => {
+    const updatedItems = cartItems.filter(item => item._id !== itemId);
+    setCartItems(updatedItems);
+    calculateTotal(updatedItems);
+
+    await removeFromCart(productId);
   };
 
-  const proceedToCheckout = () => {
-    if (cart.length === 0) {
-      alert('Your cart is empty!');
-      return;
-    }
-    navigate('/checkout', { state: { cart, total: calculateTotal() } });
-  };
+  if (loading) return <div className="p-20 text-center text-gray-400 tracking-widest">LOADING SELECTION...</div>;
 
-  const continueShopping = () => {
-    navigate('/');
-  };
-
-  if (loading) return <div className="text-center py-20">Loading Cart...</div>;
-
-  if (cart.length === 0) {
+  if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12 pt-40">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-            <div className="bg-white rounded-2xl shadow-sm p-12 max-w-2xl mx-auto">
-              <div className="text-6xl mb-6">🛒</div>
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">Your cart is empty</h2>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                Looks like you haven't added any products to your cart yet.
-              </p>
-              <button onClick={continueShopping} className="bg-black text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors duration-300">
-                Start Shopping
-              </button>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                <FileText className="w-8 h-8 text-gray-400"/>
             </div>
+            <h2 className="text-2xl font-serif font-bold text-gray-900 mb-2">Your Selection List is Empty</h2>
+            <p className="text-gray-500 mb-8 max-w-md">Start adding appliances to your project list. Our experts will help you with the best configuration.</p>
+            <button onClick={() => navigate('/')} className="bg-black text-white px-8 py-3 rounded-lg font-bold uppercase tracking-widest hover:bg-gray-800 transition-all">
+                Browse Catalog
+            </button>
         </div>
-      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 pt-40">
-      <div className="max-w-7xl mt-6 mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="max-w-7xl mx-auto px-6 py-12 pt-32">
+      <div className="flex items-end justify-between mb-10 border-b border-gray-100 pb-6">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-2">My Project Selection</h1>
+            <p className="text-gray-500">Review your appliances before finalizing the consultation.</p>
+          </div>
+          <span className="font-bold text-lg hidden md:block">{cartItems.length} Items</span>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-12">
         
-        {/* Header */}
-        <div className="text-left mb-8">
-          <h1 className="text-4xl md:text-5xl font-light mb-2">
-            Shopping <span className="font-semibold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">Cart</span>
-          </h1>
-          <p className="text-gray-600">
-            {calculateTotalItems()} Items in your cart
-          </p>
+        {/* LEFT: LIST ITEMS */}
+        <div className="lg:w-2/3 space-y-6">
+            {cartItems.map((item) => {
+                const product = item.product;
+                if (!product) return null; // Agar product DB se delete ho gaya ho toh skip karo
+
+                // 🔥 IMAGE FIX LOGIC START
+                let displayImg = product.image;
+                // 1. Agar Array hai (New Data), toh pehli image lo
+                if (Array.isArray(displayImg)) {
+                    displayImg = displayImg.length > 0 ? displayImg[0] : "";
+                }
+                // 2. Agar Cloudinary ID hai (bina http), toh Link banao
+                const finalImgUrl = displayImg && displayImg.startsWith('http') 
+                    ? displayImg 
+                    : `${CLOUDINARY_BASE_URL}${displayImg}.jpg`;
+                // 🔥 IMAGE FIX LOGIC END
+
+                return (
+                    <div key={item._id} className="flex gap-6 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="w-24 h-24 bg-gray-50 rounded-xl p-2 flex-shrink-0 flex items-center justify-center cursor-pointer" onClick={() => navigate(`/product-details/${product._id}`)}>
+                            <img 
+                                src={finalImgUrl} 
+                                alt={product.name} 
+                                className="max-w-full max-h-full object-contain mix-blend-multiply"
+                                onError={(e) => { e.target.src = "https://placehold.co/100x100?text=No+Img" }}
+                            />
+                        </div>
+                        
+                        <div className="flex-1 flex flex-col justify-between">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">{product.brand}</p>
+                                    <h3 className="font-bold text-gray-900 text-lg leading-tight cursor-pointer hover:text-amber-600 transition-colors" onClick={() => navigate(`/product-details/${product._id}`)}>
+                                        {product.name}
+                                    </h3>
+                                    {/* Agar Model No hai toh dikhao */}
+                                    {product.model && <p className="text-xs text-gray-400 mt-1">Model: {product.model}</p>}
+                                </div>
+                                <button 
+                                    onClick={() => handleRemove(product._id, item._id)} 
+                                    className="text-gray-300 hover:text-red-500 transition-colors p-1"
+                                >
+                                    <Trash2 className="w-5 h-5"/>
+                                </button>
+                            </div>
+                            
+                            <div className="flex justify-between items-end mt-4">
+                                <div className="flex items-center border border-gray-200 rounded-lg bg-gray-50">
+                                    <button onClick={() => updateQty(item._id, item.quantity - 1)} className="p-2 hover:bg-gray-200 rounded-l-lg"><Minus className="w-3 h-3"/></button>
+                                    <span className="text-sm font-bold w-8 text-center">{item.quantity}</span>
+                                    <button onClick={() => updateQty(item._id, item.quantity + 1)} className="p-2 hover:bg-gray-200 rounded-r-lg"><Plus className="w-3 h-3"/></button>
+                                </div>
+                                
+                                <div className="text-right">
+                                    <span className="block text-xs text-gray-400 uppercase">Est. Price</span>
+                                    <span className="font-bold text-xl text-gray-900">₹{((product.price || 0) * item.quantity).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items List */}
-          <div className="lg:col-span-2 space-y-4">
-             
-             {/* Action Bar */}
-             <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200">
-                <span className="font-semibold text-gray-700">Products</span>
-                {/* Clear Cart Logic backend par depend karega, abhi sirf text hai */}
-                <span className="text-gray-400 text-sm">Review your items</span>
-             </div>
-
-             {/* Items */}
-             <div className="space-y-4">
-                {cart.map((item) => (
-                  <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row gap-6 shadow-sm hover:shadow-md transition-shadow">
+        {/* RIGHT: SUMMARY & CONSULTATION ACTION */}
+        <div className="lg:w-1/3">
+            <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-xl sticky top-24">
+                <h3 className="text-lg font-bold mb-6 font-serif">Project Estimate</h3>
+                
+                <div className="space-y-4 mb-6 border-b border-gray-100 pb-6">
+                    <div className="flex justify-between text-gray-600">
+                        <span>Selected Items</span>
+                        <span>{cartItems.length}</span>
+                    </div>
+                    <div className="flex justify-between text-xl font-bold text-gray-900 pt-2">
+                        <span>Total Estimate</span>
+                        <span>₹{totalValue.toLocaleString()}</span>
+                    </div>
                     
-                    {/* Image */}
-                    <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden shrink-0">
-                       <img src={item.image} alt={item.title} className="w-full h-full object-cover mix-blend-multiply" />
+                    <div className="bg-amber-50 text-amber-800 text-xs p-4 rounded-xl leading-relaxed mt-4 border border-amber-100">
+                          <strong>Note:</strong> This is an estimated catalog price. Final project price, bulk discounts & installation charges will be shared by our expert during consultation.
                     </div>
+                </div>
 
-                    {/* Details */}
-                    <div className="flex-1 flex flex-col justify-between">
-                       <div>
-                          <h3 className="text-lg font-bold text-gray-900 line-clamp-1">{item.title}</h3>
-                          <p className="text-sm text-gray-500 mb-2">Brand: {item.brand}</p>
-                          <p className="text-xl font-bold text-teal-600">₹{item.price.toLocaleString()}</p>
-                       </div>
+                <button 
+                    onClick={() => navigate('/consultation', { 
+                        state: { 
+                            cart: cartItems, 
+                            total: totalValue 
+                        } 
+                    })}
+                    className="w-full bg-black text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all shadow-lg group"
+                >
+                    <PhoneCall className="w-5 h-5"/> 
+                    Book Expert Consultation
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/>
+                </button>
 
-                       <div className="flex justify-between items-end mt-4">
-                          {/* Quantity */}
-                          <div className="flex items-center border border-gray-300 rounded-lg">
-                             <button 
-                               onClick={() => updateQuantity(item.id, item.quantity - 1)} 
-                               disabled={item.quantity <= 1}
-                               className="px-3 py-1 hover:bg-gray-100 disabled:opacity-50"
-                             >-</button>
-                             <span className="px-3 font-semibold">{item.quantity}</span>
-                             <button 
-                               onClick={() => updateQuantity(item.id, item.quantity + 1)} 
-                               className="px-3 py-1 hover:bg-gray-100"
-                             >+</button>
-                          </div>
-
-                          {/* Remove */}
-                          <button onClick={() => removeFromCart(item.id)} className="text-red-500 hover:text-red-700 text-sm font-medium underline">
-                             Remove
-                          </button>
-                       </div>
+                <div className="mt-6 flex flex-col gap-3 text-xs text-gray-500 font-medium">
+                    <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-gray-400"/> Free Site Visit & Measurement
                     </div>
-                  </div>
-                ))}
-             </div>
-
-             <button onClick={continueShopping} className="text-gray-600 font-medium hover:text-black flex items-center gap-2 mt-4">
-                ← Continue Shopping
-             </button>
-          </div>
-
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-24">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
-              
-              <div className="space-y-3 mb-6 border-b border-gray-100 pb-6">
-                <div className="flex justify-between text-gray-600">
-                  <span>Subtotal ({calculateTotalItems()} items)</span>
-                  <span>₹{calculateTotal().toLocaleString()}</span>
+                    <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-gray-400"/> Official GST Quotation
+                    </div>
                 </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Shipping</span>
-                  <span className="text-green-600 font-medium">Free</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Tax (18%)</span>
-                  <span>₹{(calculateTotal() * 0.18).toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div className="flex justify-between text-xl font-bold text-gray-900 mb-6">
-                <span>Total</span>
-                <span>₹{(calculateTotal() * 1.18).toLocaleString()}</span>
-              </div>
-
-              <button
-                onClick={proceedToCheckout}
-                className="w-full bg-black text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-              >
-                Proceed to Checkout
-              </button>
-
-              <p className="text-xs text-center text-gray-400 mt-4">
-                🔒 Secure checkout powered by Stripe/Razorpay
-              </p>
             </div>
-          </div>
-
         </div>
+
       </div>
     </div>
   );
 }
+
+export default CartDetail;

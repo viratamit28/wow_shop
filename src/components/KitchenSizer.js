@@ -1,323 +1,400 @@
-import React, { useState, useEffect } from "react";
-import { 
-  Check, ArrowRight, Sparkles, ChevronRight, 
-  RefreshCcw, Info, X, ZoomIn, Map
-} from "lucide-react";
-import { useNavigate } from "react-router-dom"; // 👇 Import Navigate
-
-// ==================== DATA CONFIGURATION ====================
-
-// Mapping for Routing (Display Name -> URL Slug)
-const categorySlugs = {
-  "Hobs": "hobs",
-  "Chimneys": "hoods",
-  "Ovens": "ovens",
-  "Microwaves": "ovens", // Mapping microwave to ovens page for now
-  "Refrigerators": "refrigerators",
-  "Small Appliances": "small-appliances",
-  "Dishwashers": "dishwashers"
-};
-
-const layoutOptions = [
-  { id: 'l-shaped', name: "L-Shaped", desc: "Best for corners", bgImage: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80" },
-  { id: 'u-shaped', name: "U-Shaped", desc: "Maximize storage", bgImage: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&q=80" },
-  { id: 'parallel', name: "Parallel", desc: "Chef's choice", bgImage: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&q=80" },
-  { id: 'island', name: "Island", desc: "Open living", bgImage: "https://images.unsplash.com/photo-1556909212-d5b604d0c90d?auto=format&fit=crop&q=80" },
-];
-
-const sizeOptions = [
-  { id: 'compact', label: "Compact", area: "60-90 sq.ft", desc: "Studio / 1BHK", blueprint: "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&q=80" },
-  { id: 'standard', label: "Standard", area: "90-150 sq.ft", desc: "2BHK / 3BHK", blueprint: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&q=80" },
-  { id: 'grand', label: "Grand", area: "150+ sq.ft", desc: "Luxury Villa", blueprint: "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&q=80" },
-];
-
-// Simplified Database just to get Category Names
-const database = {
-  compact: [
-    { category: "Hobs", image: "https://m.media-amazon.com/images/I/61k2Xq4sJEL._SX679_.jpg" },
-    { category: "Chimneys", image: "https://cdn.shopify.com/s/files/1/0932/4816/0107/files/BASE-BF-60-BLK-4.webp?v=1758783107" },
-    { category: "Microwaves", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS_0NNCrSNnlITAX8xJj1wnARsfwpNaUEEXpg&s" },
-  ],
-  standard: [
-    { category: "Hobs", image: "https://m.media-amazon.com/images/I/61k2Xq4sJEL._SX679_.jpg" },
-    { category: "Chimneys", image: "https://cdn.shopify.com/s/files/1/0932/4816/0107/files/BASE-BF-60-BLK-4.webp?v=1758783107" },
-    { category: "Ovens", image: "https://media.croma.com/image/upload/v1708669460/Croma%20Assets/Large%20Appliances/Microwave%20Oven/Images/214300_0_s7g6yq.png" },
-    { category: "Refrigerators", image: "https://images.samsung.com/is/image/samsung/p6pim/in/rs78cg8543s9hl/energylabel/in-energylabel-product-rs78cg8543s9hl-549428104" },
-    { category: "Small Appliances", image: "https://m.media-amazon.com/images/I/61XW7irIqIL._SX679_.jpg" },
-  ],
-  grand: [
-    { category: "Hobs", image: "https://m.media-amazon.com/images/I/61k2Xq4sJEL._SX679_.jpg" },
-    { category: "Chimneys", image: "https://cdn.shopify.com/s/files/1/0932/4816/0107/files/BASE-BF-60-BLK-4.webp?v=1758783107" },
-    { category: "Refrigerators", image: "https://images.samsung.com/is/image/samsung/p6pim/in/rs78cg8543s9hl/energylabel/in-energylabel-product-rs78cg8543s9hl-549428104" },
-    { category: "Ovens", image: "https://media.croma.com/image/upload/v1708669460/Croma%20Assets/Large%20Appliances/Microwave%20Oven/Images/214300_0_s7g6yq.png" },
-    { category: "Dishwashers", image: "https://images.unsplash.com/photo-1581622558663-b2e33377dfb2?auto=format&fit=crop&q=80" }
-  ]
-};
-
-export function KitchenSizer() {
-  const navigate = useNavigate(); // Hook for navigation
-
-  // --- STATE WITH PERSISTENCE LOGIC ---
-  const [step, setStep] = useState(1);
-  const [selectedLayout, setSelectedLayout] = useState(layoutOptions[0]); 
-  const [selectedSize, setSelectedSize] = useState(null);
-  
-  // Right Panel Logic
-  const [showBlueprint, setShowBlueprint] = useState(false); 
-  const [isBlueprintZoomed, setIsBlueprintZoomed] = useState(false);
-
-  // 1. Load State on Mount (Taaki Back aane par sab waisa hi mile)
-  useEffect(() => {
-    const savedState = sessionStorage.getItem("kitchenSizerState");
-    if (savedState) {
-        const parsed = JSON.parse(savedState);
-        setStep(parsed.step);
-        setSelectedLayout(parsed.selectedLayout);
-        setSelectedSize(parsed.selectedSize);
+import React, { useState, useEffect, useContext } from "react";
+import { motion } from "framer-motion";
+import { Check, Maximize2, Info, Loader2, ShoppingCart, ArrowRight } from "lucide-react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext"; // Cart update karne ke liye
+import LShapes from "../assests/L-shape.jpg";
+// ==================== STATIC ASSETS (Room Images) ====================
+const layouts = {
+  "L-Shaped": {
+    id: "layout_l",
+    image:LShapes,
+    slots: {
+      hob: { top: "58%", left: "45%", width: "12%" }, 
+      chimney: { top: "25%", left: "44%", width: "14%" }, 
+      oven: { top: "55%", left: "75%", width: "8%" } 
     }
+  },
+  "Island": {
+    id: "layout_island",
+    image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80",
+    slots: {
+      hob: { top: "60%", left: "50%", width: "15%" },
+      chimney: { top: "10%", left: "48%", width: "18%" },
+      oven: { top: "50%", left: "20%", width: "10%" }
+    }
+  }
+};
+
+export default function KitchenSizer() {
+  const navigate = useNavigate();
+  const { token, refreshCart } = useContext(AuthContext);
+
+  // --- STATES ---
+  const [step, setStep] = useState(1); // 1: Input Area, 2: Visualizer
+  const [areaInput, setAreaInput] = useState(100); 
+  const [selectedLayout, setSelectedLayout] = useState("L-Shaped");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  
+  // Database Data States
+  const [products, setProducts] = useState({ hobs: [], chimneys: [], ovens: [] });
+  
+  // Selected Configuration
+  const [configuration, setConfiguration] = useState({
+    hob: null,
+    chimney: null,
+    oven: null
+  });
+
+  const [activeSlot, setActiveSlot] = useState(null); // Which slot is user editing?
+
+  // --- 1. FETCH FROM DATABASE ---
+  useEffect(() => {
+    const fetchFromDatabase = async () => {
+      setLoading(true);
+      try {
+        // Fetch ALL products
+        const res = await axios.get("http://localhost:5000/api/products");
+        const allProducts = res.data;
+
+        // Filter Categories (Case insensitive check)
+        const hobs = allProducts.filter(p => p.category.toLowerCase().includes('hob'));
+        const chimneys = allProducts.filter(p => p.category.toLowerCase().includes('chimney') || p.category.toLowerCase().includes('hood'));
+        const ovens = allProducts.filter(p => p.category.toLowerCase().includes('oven') || p.category.toLowerCase().includes('microwave'));
+
+        setProducts({ hobs, chimneys, ovens });
+
+        // Auto-select first items if available
+        setConfiguration({
+            hob: hobs[0] || null,
+            chimney: chimneys[0] || null,
+            oven: ovens[0] || null
+        });
+
+      } catch (error) {
+        console.error("Error loading products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFromDatabase();
   }, []);
 
-  // 2. Save State on Change
-  useEffect(() => {
-    const stateToSave = { step, selectedLayout, selectedSize };
-    sessionStorage.setItem("kitchenSizerState", JSON.stringify(stateToSave));
-  }, [step, selectedLayout, selectedSize]);
+  // --- 2. SAVE CONFIGURATION TO CART ---
+  const handleSaveConfiguration = async () => {
+    if (!token) {
+        alert("Please login to save this configuration.");
+        return;
+    }
+    setSaving(true);
+    
+    try {
+        // Create an array of selected product IDs
+        const itemsToAdd = [
+            configuration.hob, 
+            configuration.chimney, 
+            configuration.oven
+        ].filter(item => item !== null); // Remove nulls if any slot is empty
 
+        // Add each item to cart (Looping requests)
+        // Note: Better approach would be a bulk-add API, but loop works for now
+        for (const item of itemsToAdd) {
+            await axios.post('http://localhost:5000/api/cart/add', 
+                { productId: item._id, quantity: 1 }, 
+                { headers: { 'auth-token': token } }
+            );
+        }
 
-  const currentBg = selectedLayout.bgImage;
-  const currentProducts = database[selectedSize?.id] || [];
-  
-  // Extract unique categories
-  const categories = [...new Set(currentProducts.map(item => item.category))];
+        refreshCart(); // Update global cart count
+        // Redirect to Cart
+        navigate('/cart');
 
-  // --- HANDLERS ---
-
-  const handleLayoutSelect = (layout) => {
-    setSelectedLayout(layout);
-    setStep(2);
+    } catch (error) {
+        console.error("Error saving config:", error);
+        alert("Could not save configuration.");
+    } finally {
+        setSaving(false);
+    }
   };
 
-  const handleSizeSelect = (size) => {
-    setSelectedSize(size);
-    setShowBlueprint(true);
-  };
 
-  const handleFindAppliances = () => {
-    setStep(3);
-    setShowBlueprint(false);
+  // --- LOGIC: AREA RECOMMENDATION ---
+  const getRecommendation = () => {
+    if (areaInput < 80) return "Compact Series (Space Saving)";
+    if (areaInput < 150) return "Standard Series (Family Fit)";
+    return "Grand Series (Chef's Luxury)";
   };
-
-  // 👇 UPDATED: Navigate to Category Page instead of opening side panel
-  const handleCategoryClick = (categoryName) => {
-    const slug = categorySlugs[categoryName] || categoryName.toLowerCase();
-    // Navigate to the category page (e.g., /category/hobs)
-    navigate(`/category/${slug}`);
-  };
-
-  const reset = () => {
-    setStep(1);
-    setSelectedSize(null);
-    setShowBlueprint(false);
-    setIsBlueprintZoomed(false);
-    sessionStorage.removeItem("kitchenSizerState"); // Clear saved state
-  };
-
-  // Right Panel is Open only for Blueprint now
-  const isPanelOpen = showBlueprint;
 
   return (
-    <section className="relative w-full h-[850px] overflow-hidden bg-neutral-900 text-white font-sans selection:bg-amber-500 selection:text-black">
+    <section className="min-h-screen w-full bg-[#F5F5F7] font-luxury-sans text-gray-900 flex flex-col pt-20">
       
-      {/* ================= BACKGROUND ================= */}
-      <div className="absolute inset-0 z-0">
-        <div className={`absolute inset-0 bg-black/70 z-10 transition-colors duration-500 ${isPanelOpen ? "bg-black/80" : ""}`} /> 
-        <img src={currentBg} alt="Background" className="w-full h-full object-cover opacity-60 scale-105 transition-transform duration-[20s] ease-linear" />
-      </div>
-
-      {/* ================= LEFT MAIN CONTAINER ================= */}
-      <div className="relative z-20 container mx-auto px-6 h-full flex items-center justify-center lg:justify-start">
-        
-        <div className={`w-full max-w-xl animate-fade-in-right transition-all duration-500 ${isPanelOpen ? 'opacity-40 blur-[1px]' : 'opacity-100'}`}>
-            
-            {/* Header */}
-            <div className="mb-8">
-              <span className="text-amber-500 font-bold tracking-[0.2em] text-xs uppercase mb-2 flex items-center gap-2">
-                <Sparkles className="w-3 h-3" /> AI Configurator
-              </span>
-              <h2 className="text-5xl font-serif leading-tight mb-4 text-white">
-                {step === 1 && "Choose Layout"}
-                {step === 2 && "Define Space"}
-                {step === 3 && "Reference Categories"}
-              </h2>
-              <div className="h-1 w-20 bg-amber-500 rounded-full mb-4"></div>
-            </div>
-
-            {/* === STEP 1: LAYOUT === */}
-            {step === 1 && (
-              <div className="grid grid-cols-2 gap-4">
-                {layoutOptions.map((layout) => (
-                  <button
-                    key={layout.id}
-                    onClick={() => handleLayoutSelect(layout)}
-                    className={`group p-5 rounded-2xl border bg-white/5 border-white/10 text-left hover:bg-white/10 hover:border-amber-500/50 transition-all ${selectedLayout.id === layout.id ? 'border-amber-500/50 bg-white/10' : ''}`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                       <span className="font-bold text-lg group-hover:text-amber-500 transition-colors">{layout.name}</span>
-                       <ArrowRight className="w-5 h-5 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-amber-500"/>
-                    </div>
-                    <p className="text-xs text-gray-500">{layout.desc}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* === STEP 2: SIZE === */}
-            {step === 2 && (
-              <div className="space-y-4">
-                {sizeOptions.map((size) => (
-                  <button
-                    key={size.id}
-                    onClick={() => handleSizeSelect(size)}
-                    className={`w-full p-5 rounded-2xl border transition-all text-left flex justify-between items-center ${
-                      selectedSize?.id === size.id
-                        ? "bg-amber-500 border-amber-500 text-black shadow-lg"
-                        : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10"
-                    }`}
-                  >
-                    <div>
-                      <h4 className="font-bold text-lg">{size.label}</h4>
-                      <p className={`text-xs ${selectedSize?.id === size.id ? "text-black/70" : "text-gray-500"}`}>{size.area}</p>
-                    </div>
-                    {selectedSize?.id === size.id ? <Check className="w-5 h-5"/> : <Info className="w-5 h-5 opacity-50"/>}
-                  </button>
-                ))}
-
-                <div className="pt-6 flex gap-4">
-                   <button onClick={() => setStep(1)} className="px-6 py-3 rounded-xl border border-white/20 hover:bg-white/10">Back</button>
-                   <button 
-                     disabled={!selectedSize}
-                     onClick={handleFindAppliances}
-                     className={`flex-1 py-3 rounded-xl font-bold uppercase tracking-widest transition-all ${
-                       selectedSize ? "bg-white text-black hover:bg-gray-200" : "bg-neutral-800 text-gray-600 cursor-not-allowed"
-                     }`}
-                   >
-                     Show Categories <ArrowRight className="inline w-4 h-4 ml-2"/>
-                   </button>
-                </div>
-              </div>
-            )}
-
-            {/* === STEP 3: CATEGORY SLIDER (Navigates to Page) === */}
-            {step === 3 && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                    <p className="text-gray-400 text-sm">Select a category to view full collection</p>
-                    <button onClick={reset} className="text-xs text-amber-500 hover:underline flex items-center gap-1"><RefreshCcw className="w-3 h-3"/> Restart</button>
-                </div>
-
-                {/* Horizontal Category Slider */}
-                <div className="flex gap-4 overflow-x-auto pb-6 custom-scrollbar snap-x">
-                  {categories.map((cat, index) => {
-                    const repProduct = currentProducts.find(p => p.category === cat);
-                    return (
-                        <div 
-                        key={index} 
-                        onClick={() => handleCategoryClick(cat)} // 👈 Triggers Navigation
-                        className="snap-start shrink-0 w-40 h-48 bg-white rounded-xl overflow-hidden relative cursor-pointer group transition-all duration-300 border border-white/10 hover:opacity-100 opacity-90 hover:ring-2 hover:ring-amber-500"
-                        >
-                        {/* Image */}
-                        <div className="w-full h-full bg-white flex items-center justify-center relative">
-                            <img src={repProduct?.image} alt={cat} className="w-full h-full object-contain p-2" />
-                            <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/20 to-transparent pointer-events-none" />
-                        </div>
-                        
-                        {/* Text Overlay */}
-                        <div className="absolute top-0 left-0 w-full p-3 z-10">
-                            <p className="text-xs text-amber-400 font-bold uppercase tracking-wider mb-0.5 shadow-black drop-shadow-md">
-                                Explore
-                            </p>
-                            <p className="text-lg text-white font-serif leading-tight shadow-black drop-shadow-md">
-                                {cat}
-                            </p>
-                        </div>
-
-                        <div className="absolute bottom-2 right-2 bg-amber-500 p-1.5 rounded-full text-black opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
-                            <ChevronRight className="w-3 h-3"/>
-                        </div>
-                        </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+      {/* ================= HEADER ================= */}
+      <div className="bg-white border-b border-gray-200 px-6 md:px-8 py-4 flex justify-between items-center z-40 sticky top-20 shadow-sm">
+        <div>
+          <h2 className="text-xl font-luxury-serif font-bold">Kitchen Studio <span className="text-[#D4AF37]">Live</span></h2>
+          <p className="text-xs text-gray-500">Photorealistic Configurator</p>
         </div>
-      </div>
+        
+        {step === 2 && (
+             <div className="hidden md:flex gap-6 text-sm">
+                <div>
+                    <span className="text-gray-400 text-xs uppercase block">Layout</span>
+                    <span className="font-bold">{selectedLayout}</span>
+                </div>
+                <div>
+                    <span className="text-gray-400 text-xs uppercase block">Area</span>
+                    <span className="font-bold">{areaInput} sq.ft</span>
+                </div>
+                <div>
+                    <span className="text-gray-400 text-xs uppercase block">Recommendation</span>
+                    <span className="font-bold text-[#D4AF37]">{getRecommendation()}</span>
+                </div>
+             </div>
+        )}
 
-      {/* ================= RIGHT SIDE PANEL (Only for Blueprint now) ================= */}
-      <div 
-        className={`fixed inset-y-0 right-0 z-50 w-full md:w-[450px] bg-neutral-900 border-l border-white/10 shadow-2xl transform transition-transform duration-500 ease-out flex flex-col ${
-          showBlueprint ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        {selectedSize && (
-            <>
-              <div className="p-6 border-b border-white/10 bg-neutral-900 flex justify-between items-center">
-                 <h3 className="text-lg font-serif text-white flex items-center gap-2">
-                    <Map className="w-5 h-5 text-amber-500"/> Layout Preview
-                 </h3>
-                 <button onClick={() => setShowBlueprint(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white">
-                    <X className="w-5 h-5" />
-                 </button>
-              </div>
-              
-              <div className="flex-1 p-6 flex flex-col items-center justify-center text-center">
-                 <div className="group w-full aspect-square bg-neutral-800 rounded-2xl border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden mb-6 relative hover:border-amber-500/50 transition-colors">
-                    <img src={selectedSize.blueprint} alt="Blueprint" className="w-full h-full object-cover opacity-60" />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-                        <button 
-                            onClick={() => setIsBlueprintZoomed(true)}
-                            className="bg-white text-black px-4 py-2 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform"
-                        >
-                            <ZoomIn className="w-4 h-4" /> Zoom View
-                        </button>
-                    </div>
-                 </div>
-                 <h4 className="text-xl font-bold text-white mb-2">{selectedSize.label} Configuration</h4>
-                 <p className="text-sm text-gray-400 max-w-xs mb-6">
-                    This layout is optimized for {selectedSize.desc}.
-                 </p>
-                 <button 
-                    onClick={handleFindAppliances} 
-                    className="w-full py-3 bg-amber-500 text-black rounded-xl font-bold uppercase tracking-widest hover:bg-amber-400 transition-colors"
-                 >
-                    Confirm & View Appliances
-                 </button>
-              </div>
-            </>
+        {step === 2 && (
+             <button onClick={() => setStep(1)} className="text-xs uppercase tracking-widest border-b border-gray-300 pb-1 hover:text-[#D4AF37] hover:border-[#D4AF37]">
+                Start Over
+             </button>
         )}
       </div>
 
-      {/* ================= ZOOM MODAL ================= */}
-      {isBlueprintZoomed && selectedSize && (
-        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-fade-in">
-            <button onClick={() => setIsBlueprintZoomed(false)} className="absolute top-6 right-6 text-white hover:text-amber-500 transition-colors bg-white/10 p-2 rounded-full">
-                <X className="w-8 h-8" />
-            </button>
-            <div className="max-w-5xl w-full max-h-[90vh] flex flex-col items-center">
-                <h2 className="text-2xl font-serif text-white mb-4">{selectedSize.label} Blueprint</h2>
-                <div className="relative w-full h-full border border-white/20 rounded-xl overflow-hidden bg-neutral-800">
-                    <img src={selectedSize.blueprint} alt="Full Blueprint" className="w-full h-full object-contain" />
+      {/* ================= STEP 1: INPUT (CONSULTATION PHASE) ================= */}
+      {step === 1 && (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-white p-8 md:p-12 rounded-lg shadow-xl max-w-3xl w-full text-center border border-gray-100"
+          >
+            <h1 className="text-4xl md:text-5xl font-luxury-serif mb-4 text-gray-900">Visualize Your Space.</h1>
+            <p className="text-gray-500 mb-10 max-w-md mx-auto leading-relaxed">
+                Enter your kitchen details. Our system will recommend the perfect appliance sizes and visualize them in a real environment.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left mb-10">
+                {/* Layout Selector */}
+                <div>
+                    <label className="text-xs font-bold uppercase tracking-widest block mb-3 text-gray-400">Select Layout</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        {Object.keys(layouts).map(layout => (
+                            <button 
+                                key={layout}
+                                onClick={() => setSelectedLayout(layout)}
+                                className={`p-4 border text-center transition-all rounded-sm ${
+                                    selectedLayout === layout 
+                                    ? 'border-[#D4AF37] bg-gray-900 text-white shadow-lg' 
+                                    : 'border-gray-200 hover:border-gray-400 bg-gray-50'
+                                }`}
+                            >
+                                {layout}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Area Slider */}
+                <div>
+                    <label className="text-xs font-bold uppercase tracking-widest block mb-3 text-gray-400">Kitchen Area (Sq. Ft)</label>
+                    <div className="bg-gray-50 p-6 rounded-sm border border-gray-100">
+                        <div className="flex justify-between mb-4">
+                             <span className="text-3xl font-serif text-gray-900">{areaInput}</span>
+                             <span className="text-gray-400 self-end mb-1">sq.ft</span>
+                        </div>
+                        <input 
+                            type="range" min="50" max="300" 
+                            value={areaInput} 
+                            onChange={(e) => setAreaInput(e.target.value)}
+                            className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#D4AF37]"
+                        />
+                        <div className="mt-4 flex items-start gap-2 text-xs text-[#D4AF37] bg-amber-50 p-2 rounded">
+                             <Info className="w-4 h-4 flex-shrink-0" />
+                             <span>Based on size, we suggest: <b>{getRecommendation()}</b>.</span>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <button 
+                onClick={() => setStep(2)}
+                disabled={loading}
+                className="bg-gray-900 text-white px-12 py-4 uppercase tracking-[0.2em] text-sm font-bold hover:bg-[#D4AF37] hover:text-black transition-all shadow-xl disabled:opacity-50"
+            >
+                {loading ? <div className="flex items-center gap-2"><Loader2 className="animate-spin" /> Loading Products...</div> : "Generate My Kitchen"}
+            </button>
+          </motion.div>
         </div>
       )}
 
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar { height: 4px; width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-      `}</style>
+      {/* ================= STEP 2: REAL-TIME VISUALIZER (THE WOW FACTOR) ================= */}
+      {step === 2 && (
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden h-[calc(100vh-140px)]">
+            
+            {/* --- LEFT: THE STAGE (Realistic Image) --- */}
+            <div className="flex-1 relative bg-gray-100 overflow-hidden group">
+                
+                {/* 1. Base Real Kitchen Image */}
+                <motion.div 
+                    initial={{ scale: 1.1, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 1 }}
+                    className="w-full h-full"
+                >
+                    <img 
+                        src={layouts[selectedLayout].image} 
+                        alt="Kitchen Base" 
+                        className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/10" />
+                </motion.div>
+
+                {/* 2. PRODUCT OVERLAYS (Now using Real DB Data) */}
+                
+                {/* Hob Layer */}
+                {configuration.hob && (
+                    <motion.img 
+                        key={configuration.hob._id}
+                        initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                        src={configuration.hob.image} // Using real DB image field
+                        alt="Hob"
+                        style={{ 
+                            position: 'absolute', 
+                            ...layouts[selectedLayout].slots.hob,
+                            filter: 'drop-shadow(0px 10px 10px rgba(0,0,0,0.5))' 
+                        }}
+                        className={`z-10 object-contain transition-transform cursor-pointer mix-blend-multiply ${activeSlot === 'hob' ? 'scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]' : 'hover:scale-105'}`}
+                        onClick={() => setActiveSlot('hob')}
+                    />
+                )}
+
+                {/* Chimney Layer */}
+                {configuration.chimney && (
+                    <motion.img 
+                        key={configuration.chimney._id}
+                        initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
+                        src={configuration.chimney.image}
+                        alt="Chimney"
+                        style={{ 
+                            position: 'absolute', 
+                            ...layouts[selectedLayout].slots.chimney,
+                            filter: 'drop-shadow(0px 20px 30px rgba(0,0,0,0.6))' 
+                        }}
+                        className={`z-10 object-contain transition-transform cursor-pointer mix-blend-multiply ${activeSlot === 'chimney' ? 'scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]' : 'hover:scale-105'}`}
+                        onClick={() => setActiveSlot('chimney')}
+                    />
+                )}
+
+                {/* Oven Layer */}
+                {configuration.oven && (
+                     <motion.img 
+                        key={configuration.oven._id}
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                        src={configuration.oven.image}
+                        alt="Oven"
+                        style={{ 
+                            position: 'absolute', 
+                            ...layouts[selectedLayout].slots.oven,
+                        }}
+                        className={`z-10 object-contain transition-transform cursor-pointer mix-blend-multiply ${activeSlot === 'oven' ? 'scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]' : 'hover:scale-105'}`}
+                        onClick={() => setActiveSlot('oven')}
+                    />
+                )}
+
+
+                {/* 3. INTERACTIVE TAGS (Click to Edit) */}
+                {Object.entries(layouts[selectedLayout].slots).map(([key, pos]) => (
+                    <button
+                        key={key}
+                        style={{ top: pos.top, left: pos.left, marginLeft: '5%' }}
+                        onClick={() => setActiveSlot(key === activeSlot ? null : key)}
+                        className={`absolute z-20 w-8 h-8 rounded-full border border-white/50 flex items-center justify-center transition-all shadow-lg ${
+                            activeSlot === key ? 'bg-[#D4AF37] scale-110' : 'bg-white/20 backdrop-blur-md hover:bg-[#D4AF37]'
+                        }`}
+                    >
+                        {activeSlot === key ? <Check className="w-4 h-4 text-black" /> : <div className="w-2 h-2 bg-white rounded-full animate-ping" />}
+                    </button>
+                ))}
+
+            </div>
+
+            {/* --- RIGHT: THE PRODUCT SELECTOR (Floating Drawer) --- */}
+            <div className="w-full lg:w-[400px] bg-white border-l border-gray-200 z-30 flex flex-col shadow-2xl relative">
+                
+                <div className="p-6 border-b border-gray-100 bg-gray-50">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Customization</h3>
+                    <h2 className="text-2xl font-luxury-serif text-gray-900">
+                        {activeSlot ? `Select ${activeSlot.charAt(0).toUpperCase() + activeSlot.slice(1)}` : "Select an Appliance"}
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-2">
+                         {activeSlot ? "Real-time preview enabled" : "Click on the glowing dots on the image to edit."}
+                    </p>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {activeSlot ? (
+                        // Show Options from DB for Active Slot
+                        <div className="space-y-4">
+                            {products[activeSlot + 's']?.length > 0 ? (
+                                products[activeSlot + 's']?.map((product) => (
+                                <div 
+                                    key={product._id}
+                                    onClick={() => setConfiguration({...configuration, [activeSlot]: product})}
+                                    className={`group cursor-pointer p-4 border rounded-lg flex items-center gap-4 transition-all ${
+                                        configuration[activeSlot]?._id === product._id
+                                        ? 'border-[#D4AF37] bg-amber-50 shadow-md ring-1 ring-[#D4AF37]'
+                                        : 'border-gray-200 hover:border-gray-400 hover:shadow-sm'
+                                    }`}
+                                >
+                                    <div className="w-20 h-20 bg-white border border-gray-100 p-2 flex items-center justify-center rounded-md">
+                                        <img src={product.image} className="max-h-full max-w-full object-contain mix-blend-multiply" alt={product.name} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-sm text-gray-900 line-clamp-2">{product.name}</h4>
+                                        <p className="text-xs text-gray-500 mb-2">{product.brand}</p>
+                                        <div className="flex justify-between items-center">
+                                            <p className="text-sm font-bold text-gray-900">₹{product.price.toLocaleString()}</p>
+                                            {configuration[activeSlot]?._id === product._id && <Check className="w-5 h-5 text-[#D4AF37]" />}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))) : (
+                                <div className="text-center py-10 text-gray-400">
+                                    No products found for this category.
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        // Default View (Guidance)
+                        <div className="text-center py-20 opacity-60">
+                            <Maximize2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                            <p className="text-sm text-gray-500 font-medium">Select any hotspot on the image <br/> to swap appliances instantly.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer Total */}
+                <div className="p-6 border-t border-gray-200 bg-gray-900 text-white shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+                    <div className="flex justify-between items-center mb-6">
+                        <span className="text-xs uppercase tracking-widest text-gray-400">Estimated Total</span>
+                        <span className="text-3xl font-luxury-serif text-[#D4AF37]">
+                            ₹{((configuration.hob?.price || 0) + (configuration.chimney?.price || 0) + (configuration.oven?.price || 0)).toLocaleString()}
+                        </span>
+                    </div>
+                    <button 
+                        onClick={handleSaveConfiguration}
+                        disabled={saving}
+                        className="w-full py-4 bg-[#D4AF37] text-black font-bold uppercase tracking-[0.2em] text-xs hover:bg-white transition-colors rounded-sm shadow-lg flex items-center justify-center gap-2"
+                    >
+                        {saving ? <Loader2 className="animate-spin w-4 h-4"/> : <ShoppingCart className="w-4 h-4"/>}
+                        {saving ? "Saving..." : "Add to Cart & Finalize"}
+                    </button>
+                </div>
+
+            </div>
+        </div>
+      )}
     </section>
   );
 }

@@ -6,8 +6,17 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        dosis: ['Dosis', 'sans-serif'],
+        
+        'luxury-serif': ['"Playfair Display"', 'serif'],
+        'luxury-sans': ['Montserrat', 'sans-serif'],    
       },
+
+      colors: {
+        amber: {
+          400: '#fbbf24',
+          500: '#f59e0b',
+        }
+      }
     },
   },
   plugins: [],

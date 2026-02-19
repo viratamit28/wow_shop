@@ -1,30 +1,24 @@
 const router = require('express').Router();
 const User = require('../models/User');
-const Product = require('../models/Product');
-const verify = require('../middleware/verifyToken'); // 🔒 Guard import kiya
+const verify = require('../middleware/verifyToken'); // 🔒 Guard
 
 // --- 1. ADD TO CART ---
 router.post('/add', verify, async (req, res) => {
   try {
     const { productId, quantity } = req.body;
-    
-    // User dhundo
     const user = await User.findById(req.user._id);
 
     // Check karo product pehle se cart me hai kya?
     const itemIndex = user.cart.findIndex(item => item.productId == productId);
 
     if (itemIndex > -1) {
-      // Agar hai, toh quantity badha do
       user.cart[itemIndex].quantity += quantity || 1;
     } else {
-      // Agar nahi hai, toh naya item push karo
       user.cart.push({ productId, quantity: quantity || 1 });
     }
 
     await user.save();
     res.send("Item Added to Cart");
-
   } catch (err) {
     res.status(400).send(err.message);
   }
@@ -33,26 +27,29 @@ router.post('/add', verify, async (req, res) => {
 // --- 2. GET USER CART (With Product Details) ---
 router.get('/', verify, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate('cart.productId'); 
-    // .populate() ka jaadu: Ye sirf ID nahi, pura Product data (Image, Price, Name) layega
-    
+    const user = await User.findById(req.user._id).populate('cart.productId');
     res.json(user.cart);
   } catch (err) {
     res.status(400).send(err.message);
   }
 });
 
-// --- 3. REMOVE FROM CART ---
-router.post('/remove', verify, async (req, res) => {
+// --- 3. DELETE ITEM FROM CART (New Route) ---
+// 👇 Ye route ab database se item uda dega
+router.delete('/delete/:productId', verify, async (req, res) => {
   try {
-    const { productId } = req.body;
+    const productId = req.params.productId;
     const user = await User.findById(req.user._id);
 
     // Filter karke item hata do
-    user.cart = user.cart.filter(item => item.productId != productId);
+    // Hum wo items rakh rahe hain jinki ID match NAHI karti
+    user.cart = user.cart.filter(item => {
+        // Check both Object ID inside productId or direct item ID
+        return item.productId.toString() !== productId && item._id.toString() !== productId;
+    });
 
     await user.save();
-    res.send("Item Removed");
+    res.send("Item Removed Successfully");
   } catch (err) {
     res.status(400).send(err.message);
   }
@@ -66,7 +63,7 @@ router.post('/update', verify, async (req, res) => {
 
     const itemIndex = user.cart.findIndex(item => item.productId == productId);
     if (itemIndex > -1) {
-      user.cart[itemIndex].quantity = quantity; // Direct set karo
+      user.cart[itemIndex].quantity = quantity;
       await user.save();
       res.send("Quantity Updated");
     } else {

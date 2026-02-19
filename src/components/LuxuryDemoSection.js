@@ -1,241 +1,216 @@
 import React, { useState } from "react";
-import { Calendar, Clock, ChevronRight, Star, Sparkles, X, Loader2, CheckCircle } from "lucide-react";
-import consultationBanner from "../assests/book.jpg";
+import { ArrowRight, Check, Calendar, Clock, Star, ChevronLeft } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-const LuxuryDemoSection = () => {
+// --- CONFIGURATION ---
+const LUXURY_BG_IMAGE = "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80";
+const DATES_TO_GENERATE = 7;
+const TIME_SLOTS = ["10:00", "11:30", "13:00", "14:30", "16:00", "17:30"];
+
+export function BookingConsultation({ isOpen, onClose }) {
+  const [step, setStep] = useState(0); 
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [showLogin, setShowLogin] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false); // Success modal ke liye
-  const [loading, setLoading] = useState(false); // API call status
+  const [loading, setLoading] = useState(false);
 
-  // Dummy user check (Isse apne auth logic se replace karein)
-  const isUserLoggedIn = true; 
-  const userId = "USER_12345"; // Ye actual user ID context ya local storage se aayega
+  // Generate Dates
+  const dates = Array.from({ length: DATES_TO_GENERATE }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return {
+      dayName: d.toLocaleDateString("en-US", { weekday: "long" }),
+      dayNumber: d.getDate(),
+      month: d.toLocaleDateString("en-US", { month: "short" }),
+      fullDate: d.toISOString().split("T")[0],
+    };
+  });
 
-  const generateDates = () => {
-    const dates = [];
-    const today = new Date();
-    for (let i = 0; i < 14; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      dates.push({
-        day: d.toLocaleDateString('en-US', { weekday: 'short' }),
-        date: d.getDate(),
-        month: d.toLocaleDateString('en-US', { month: 'short' }),
-        fullDate: d
-      });
-    }
-    return dates;
+  const handleNext = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      setStep((prev) => prev + 1);
+    }, 800);
   };
 
-  const datesList = generateDates();
-  const slots = ["10:00 AM", "11:30 AM", "01:00 PM", "02:30 PM", "04:00 PM", "05:30 PM"];
-
-  // Main Booking Function
-  const handleBook = async () => {
-    if (!selectedDate || !selectedTime) return;
-
-    if (!isUserLoggedIn) {
-      setShowLogin(true);
-      return;
-    }
-
-    // Backend API Call start
-    setLoading(true);
-    try {
-      const response = await fetch('http://localhost:5000/api/appointments/book', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userId,
-          date: selectedDate,
-          month: datesList.find(d => d.date === selectedDate)?.month,
-          time: selectedTime,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Success: Show success modal
-        setShowSuccess(true);
-        // Reset selection
-        setSelectedDate(null);
-        setSelectedTime(null);
-      } else {
-        alert("Booking failed: " + data.message);
-      }
-    } catch (error) {
-      console.error("Error booking appointment:", error);
-      alert("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  // --- ANIMATIONS ---
+  const spotlightVariants = {
+    hidden: { opacity: 0, y: 50, scale: 0.9 },
+    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.7, ease: "circOut" } },
+    exit: { opacity: 0, scale: 0.9, transition: { duration: 0.3 } }
   };
 
   return (
-    <section className="min-h-screen bg-gray-50 flex items-center justify-center p-4 md:p-8 font-sans">
+    <section className="relative w-full h-screen bg-black text-white font-luxury-sans overflow-hidden flex items-center justify-center">
       
-      {/* Main Card Container */}
-      <div className="bg-white shadow-2xl rounded-3xl overflow-hidden max-w-6xl w-full flex flex-col lg:flex-row min-h-[600px] border border-gray-100">
-        
-        {/* Left Side - Visuals */}
-        <div className="lg:w-5/12 relative h-64 lg:h-auto overflow-hidden group">
-          <img
-            src={consultationBanner}
-            alt="Luxury Kitchen"
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-          
-          <div className="absolute bottom-0 left-0 p-8 text-white z-10">
-            <div className="flex items-center gap-2 mb-4 bg-white/10 backdrop-blur-md w-fit px-4 py-1.5 rounded-full border border-white/20">
-              <Sparkles className="w-4 h-4 text-orange-400" />
-              <span className="text-xs font-bold tracking-wider uppercase">Virtual Experience</span>
-            </div>
-            <h2 className="text-3xl md:text-4xl font-bold leading-tight mb-3">
-              Future of <br/> <span className="text-orange-400">Cooking</span>
-            </h2>
-            <p className="text-gray-300 text-sm md:text-base leading-relaxed max-w-sm">
-              Schedule a personalized live demo with our kitchen experts.
-            </p>
-          </div>
-        </div>
-
-        {/* Right Side - Booking Form */}
-        <div className="lg:w-7/12 p-6 md:p-12 lg:p-14 flex flex-col bg-white relative">
-          
-          <div className="mb-10">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Book a Demo</h1>
-            <p className="text-gray-500 font-medium">Choose a suitable time for your consultation.</p>
-          </div>
-
-          <div className="flex-1 space-y-10">
-            
-            {/* Date Selection */}
-            <div>
-              <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-                <Calendar className="w-4 h-4 text-orange-500" />
-                Select Date
-              </label>
-              
-              <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-2 px-2">
-                {datesList.map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedDate(item.date)}
-                    className={`flex flex-col items-center justify-center min-w-[72px] h-[90px] rounded-2xl border transition-all duration-300 ${
-                      selectedDate === item.date
-                        ? "bg-gray-900 border-gray-900 text-white shadow-xl shadow-gray-200 transform scale-105"
-                        : "bg-white border-gray-100 text-gray-400 hover:border-orange-200 hover:bg-orange-50/50"
-                    }`}
-                  >
-                    <span className="text-[10px] font-bold uppercase tracking-wider mb-1">{item.day}</span>
-                    <span className={`text-2xl font-bold ${selectedDate === item.date ? 'text-orange-400' : 'text-gray-900'}`}>
-                      {item.date}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Time Selection */}
-            <div>
-              <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-                <Clock className="w-4 h-4 text-orange-500" />
-                Select Time
-              </label>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {slots.map((slot, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedTime(slot)}
-                    className={`py-3.5 px-4 rounded-xl text-sm font-semibold border transition-all duration-200 ${
-                      selectedTime === slot
-                        ? "bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-200"
-                        : "bg-white border-gray-100 text-gray-600 hover:border-orange-300 hover:text-orange-600"
-                    }`}
-                  >
-                    {slot}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Action */}
-          <div className="mt-12 pt-6 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex flex-col">
-              <span className="text-xs text-gray-400 uppercase font-bold tracking-wide mb-1">Your Selection</span>
-              <span className="text-lg font-bold text-gray-900">
-                {selectedDate && selectedTime 
-                  ? `${selectedDate} ${datesList.find(d => d.date === selectedDate)?.month} at ${selectedTime}`
-                  : "No slot selected"}
-              </span>
-            </div>
-            
-            <button
-              onClick={handleBook}
-              disabled={!selectedDate || !selectedTime || loading}
-              className={`group flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-bold text-white shadow-xl transition-all duration-300 w-full md:w-auto min-w-[200px] ${
-                selectedDate && selectedTime
-                  ? "bg-gray-900 hover:bg-orange-600 hover:shadow-orange-200 cursor-pointer"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-              }`}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Booking...
-                </>
-              ) : (
-                <>
-                  Confirm Booking
-                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+      {/* 1. DARK CINEMATIC BACKGROUND (No Blur) */}
+      <div className="absolute inset-0 z-0">
+        <img 
+            src={LUXURY_BG_IMAGE} 
+            alt="Background" 
+            className="w-full h-full object-cover opacity-20" // Very dark image
+        />
+        {/* Heavy Vignette to focus center */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#000000_90%)]" />
+        <div className="absolute inset-0 bg-black/50" />
       </div>
 
-      {/* Success Modal */}
-      {showSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSuccess(false)} />
-           <div className="relative bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in duration-300">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle className="w-10 h-10 text-green-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Booking Confirmed!</h3>
-              <p className="text-gray-500 mb-8">We have received your appointment request. Our team will contact you shortly.</p>
-              <button 
-                onClick={() => setShowSuccess(false)}
-                className="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl hover:bg-gray-800 transition-colors"
-              >
-                Close
-              </button>
-           </div>
-        </div>
-      )}
+      {/* 2. THE SPOTLIGHT BEAM (Lighting Effect) */}
+      {/* Yeh wo light hai jo upar se content par gir rahi hai */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[500px] bg-gradient-to-b from-white/10 via-transparent to-transparent blur-[80px] pointer-events-none z-0" />
+      
+      {/* 3. MAIN CONTENT CONTAINER */}
+      <div className="relative z-10 w-full max-w-5xl p-6">
+        <AnimatePresence mode="wait">
+          
+          {/* --- STEP 0: INTRO (The Invitation) --- */}
+          {step === 0 && (
+            <motion.div
+              key="step0"
+              variants={spotlightVariants}
+              initial="hidden" animate="visible" exit="exit"
+              className="flex flex-col items-center text-center"
+            >
+              {/* Glowing Top Line */}
+              <div className="w-[1px] h-24 bg-gradient-to-b from-transparent via-[#D4AF37] to-transparent mb-8" />
 
-      {/* Login Modal (Same as before but simplified for brevity) */}
-      {showLogin && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowLogin(false)} />
-            <div className="relative bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
-               <h3 className="text-2xl font-bold mb-4">Please Login</h3>
-               <p className="text-gray-500 mb-6">You need to login to confirm your booking.</p>
-               <button onClick={() => setShowLogin(false)} className="w-full bg-gray-900 text-white py-3 rounded-xl">Login</button>
-            </div>
-         </div>
-      )}
+              <div className="border border-[#D4AF37] px-6 py-2 mb-8 bg-black">
+                  <span className="text-xs uppercase tracking-[0.4em] text-[#D4AF37] font-bold">Exclusive Access</span>
+              </div>
+              
+              <h1 className="text-6xl md:text-8xl font-luxury-serif text-white mb-8 leading-none tracking-tight">
+                Design <span className="text-[#D4AF37] italic">Sanctuary</span>
+              </h1>
+              
+              <p className="text-neutral-400 text-lg font-light max-w-lg mx-auto leading-relaxed mb-12">
+                A private consultation to craft your culinary legacy. Reserve your moment with our architects.
+              </p>
+
+              <button
+                onClick={() => setStep(1)}
+                className="group relative px-12 py-4 bg-transparent border border-white/20 hover:border-[#D4AF37] transition-colors duration-500"
+              >
+                <span className="text-xs font-bold uppercase tracking-[0.3em] group-hover:text-[#D4AF37] transition-colors">Enter</span>
+                {/* Button Glow Effect */}
+                <div className="absolute inset-0 bg-[#D4AF37]/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              </button>
+            </motion.div>
+          )}
+
+          {/* --- STEP 1: DATE (The Grid) --- */}
+          {step === 1 && (
+            <motion.div
+              key="step1"
+              variants={spotlightVariants}
+              initial="hidden" animate="visible" exit="exit"
+              className="w-full max-w-4xl mx-auto"
+            >
+              <div className="flex justify-between items-end mb-12 border-b border-white/10 pb-6">
+                <div>
+                    <p className="text-[#D4AF37] text-xs uppercase tracking-[0.3em] mb-2">Step 01</p>
+                    <h2 className="text-4xl font-luxury-serif text-white">Choose a Date</h2>
+                </div>
+                <button onClick={() => setStep(0)} className="text-white/40 hover:text-white flex items-center gap-2 text-xs uppercase tracking-widest"><ChevronLeft className="w-4 h-4"/> Back</button>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-px bg-white/10 border border-white/10"> 
+                {/* Gap-px creates the grid lines look */}
+                {dates.map((item, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setSelectedDate(item); handleNext(); }}
+                    className="group relative h-48 bg-black hover:bg-[#0a0a0a] transition-colors flex flex-col items-center justify-center gap-4 overflow-hidden"
+                  >
+                    {/* The Spotlight Hover Effect inside card */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-[#D4AF37]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    
+                    <span className="text-[10px] uppercase tracking-widest text-neutral-500 group-hover:text-[#D4AF37] transition-colors relative z-10">{item.month}</span>
+                    <span className="text-5xl font-luxury-serif text-white group-hover:scale-110 transition-transform duration-500 relative z-10">{item.dayNumber}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-neutral-500 relative z-10">{item.dayName.substring(0,3)}</span>
+                    
+                    {/* Bottom Active Line */}
+                    <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[#D4AF37] scale-x-0 group-hover:scale-x-100 transition-transform duration-500" />
+                  </button>
+                ))}
+              </div>
+              
+              {loading && <div className="mt-8 text-center text-[#D4AF37] text-xs uppercase tracking-widest animate-pulse">Syncing Calendar...</div>}
+            </motion.div>
+          )}
+
+          {/* --- STEP 2: TIME (The List) --- */}
+          {step === 2 && (
+            <motion.div
+              key="step2"
+              variants={spotlightVariants}
+              initial="hidden" animate="visible" exit="exit"
+              className="w-full max-w-2xl mx-auto"
+            >
+              <div className="flex justify-between items-end mb-12 border-b border-white/10 pb-6">
+                <div>
+                    <p className="text-[#D4AF37] text-xs uppercase tracking-[0.3em] mb-2">Step 02</p>
+                    <h2 className="text-4xl font-luxury-serif text-white">Select Time</h2>
+                    <p className="text-neutral-500 text-sm mt-1 uppercase tracking-wider">{selectedDate?.dayName}, {selectedDate?.dayNumber} {selectedDate?.month}</p>
+                </div>
+                <button onClick={() => setStep(1)} className="text-white/40 hover:text-white flex items-center gap-2 text-xs uppercase tracking-widest"><ChevronLeft className="w-4 h-4"/> Back</button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                {TIME_SLOTS.map((time, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setSelectedTime(time); handleNext(); }}
+                    className="relative py-6 border border-white/10 bg-black hover:border-[#D4AF37] text-xl font-luxury-serif tracking-widest group transition-all duration-300"
+                  >
+                    <span className="relative z-10 group-hover:text-[#D4AF37] transition-colors">{time}</span>
+                    {/* Corner accents for tech feel */}
+                    <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-white/30 group-hover:border-[#D4AF37] transition-colors" />
+                    <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-white/30 group-hover:border-[#D4AF37] transition-colors" />
+                  </button>
+                ))}
+              </div>
+              
+              {loading && <div className="mt-8 text-center text-[#D4AF37] text-xs uppercase tracking-widest animate-pulse">Confirming Slot...</div>}
+            </motion.div>
+          )}
+
+          {/* --- STEP 3: CONFIRMED (The Revelation) --- */}
+          {step === 3 && (
+            <motion.div
+              key="step3"
+              variants={spotlightVariants}
+              initial="hidden" animate="visible" exit="exit"
+              className="flex flex-col items-center justify-center text-center relative"
+            >
+              {/* Backlight Burst */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#D4AF37]/10 blur-[100px] rounded-full -z-10" />
+
+              <div className="w-16 h-16 border border-[#D4AF37] flex items-center justify-center mb-8 rotate-45">
+                 <div className="w-12 h-12 bg-[#D4AF37] flex items-center justify-center -rotate-45">
+                    <Check className="w-6 h-6 text-black" />
+                 </div>
+              </div>
+
+              <h2 className="text-6xl font-luxury-serif text-white mb-6">Confirmed</h2>
+              
+              <div className="flex flex-col items-center gap-2 mb-12">
+                <p className="text-neutral-400 text-xs uppercase tracking-[0.3em]">Your Appointment</p>
+                <div className="text-2xl text-white font-light border-y border-white/10 py-4 px-12">
+                  {selectedDate?.dayNumber} {selectedDate?.month} <span className="mx-4 text-[#D4AF37]">//</span> {selectedTime}
+                </div>
+              </div>
+
+              <button 
+                onClick={() => { if(onClose) onClose(); else window.location.reload(); }}
+                className="text-white/50 hover:text-white text-[10px] uppercase tracking-[0.3em] transition-colors hover:underline decoration-[#D4AF37] underline-offset-8"
+              >
+                Close Invitation
+              </button>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
+      </div>
     </section>
   );
-};
-
-export default LuxuryDemoSection;
+}

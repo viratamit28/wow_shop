@@ -1,16 +1,21 @@
-import React from 'react'
-import {Header} from '../components/Header';
-import {Footer} from '../components/Footer';
+import React from 'react';
+// Header aur Footer App.js me hain, yahan dubara mat lagao warna double dikhenge
 import CartDetail from '../components/CartDetail';
-import SuggestedProducts from '../components/SuggestedProduct';
+import SuggestedProducts from '../components/SuggestedProduct'; // Ensure this file exists
+import {Footer} from '../components/Footer';
 
 const Cart = () => {
   return (
     <div>
-      <Header/>
+       {/* Main Cart Logic Component */}
        <CartDetail/>
-       <SuggestedProducts/>
-      <Footer/>
+       
+       {/* Recommendations (Optional) */}
+       <div >
+          <SuggestedProducts/>
+       </div>
+       {/* Footer */}
+       <Footer />
     </div>
   )
 }

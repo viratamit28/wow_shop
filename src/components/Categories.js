@@ -1,146 +1,212 @@
-import React from "react";
-import { ArrowUpRight } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // 👇 Import added for navigation
+import React, { useState } from "react";
+import { ArrowUpRight, Sparkles, MoveRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
-// Data Structure
+// Local Images (Ensure paths are correct)
+import img1 from '../assests/oven.jpg';
+import img3 from '../assests/chemni.jpg';
+import img4 from '../assests/refrigarator.jpg';
+import img6 from '../assests/countertop.jpg';
+import img7 from '../assests/laundry.jpg';
+
 const categoriesData = [
   {
     id: "ovens",
     name: "Built-in Ovens",
-    className: "md:col-span-2 md:row-span-2", // Large Box
-    image: "https://images.unsplash.com/photo-1626806819282-2c1dc01a5e0c?q=80&w=2070&auto=format&fit=crop",
-    items: ["Built-in Oven", "Steam Combi Oven", "Microwave", "Combi Microwave"]
+    className: "md:col-span-2 md:row-span-2", 
+    image: img1,
+    subtitle: "The Heart of Baking",
+    count: "12 Models"
   },
   {
     id: "hobs",
     name: "Premium Hobs",
-    className: "md:col-span-2 md:row-span-1", // Wide Box
-    image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80",
-    items: ["3/4/5 Burner Hobs", "Induction", "Teppanyaki", "Deep Fryer"]
+    className: "md:col-span-2 md:row-span-1", 
+    image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=800", // Optimized width
+    subtitle: "Precision Flame Technology",
+    count: "8 Models"
   },
   {
     id: "hoods",
     name: "Chimneys",
-    className: "md:col-span-1 md:row-span-2", // Tall Box
-    image: "https://images.unsplash.com/photo-1556909212-d5b604d0c90d?auto=format&fit=crop&q=80",
-    items: ["Wall Mounted", "Island Hood", "Ceiling Mounted", "Downdraft"]
+    className: "md:col-span-1 md:row-span-2", 
+    image: img3,
+    subtitle: "Silent Suction",
+    count: "15 Models"
   },
   {
     id: "refrigerators",
     name: "Refrigerators",
     className: "md:col-span-1 md:row-span-1",
-    image: "https://images.unsplash.com/photo-1571175443880-49e1d58b95da?auto=format&fit=crop&q=80",
-    items: ["Freestanding", "Built-in"]
+    image: img4,
+    subtitle: "Preserve Freshness",
+    count: "6 Models"
   },
   {
     id: "dishwashers",
     name: "Dishwashers",
     className: "md:col-span-1 md:row-span-1",
-    image: "https://images.unsplash.com/photo-1581622558663-b2e33377dfb2?auto=format&fit=crop&q=80",
-    items: ["Freestanding", "Built-in"]
+    image: "https://images.unsplash.com/photo-1581622558663-b2e33377dfb2?auto=format&fit=crop&q=80&w=600",
+    subtitle: "Hygiene Perfected",
+    count: "5 Models"
   },
   {
-    id: "small-appliances",
+    id: "countertop", // Fixed ID matching (check your DB/Route)
     name: "Countertop",
-    className: "md:col-span-2 md:row-span-1", // Wide Box
-    image: "https://images.unsplash.com/photo-1594385208974-2e75f8d7bb48?auto=format&fit=crop&q=80",
-    items: ["Food Processor", "Mixer Grinder", "Blender", "Toaster", "Kettle"]
+    className: "md:col-span-2 md:row-span-1", 
+    image: img6,
+    subtitle: "Daily Essentials",
+    count: "20+ Items"
   },
   {
     id: "washing",
-    name: "Laundry",
+    name: "Washing Machines",
     className: "md:col-span-1 md:row-span-1",
-    image: "https://images.unsplash.com/photo-1626806749707-e44c82eed727?auto=format&fit=crop&q=80",
-    items: ["Washing Machine", "Dryer"]
+    image: img7,
+    subtitle: "Fabric Care",
+    count: "4 Models"
   }
 ];
 
-export function Categories() {
-  const navigate = useNavigate(); // 👇 Hook initialized
+// 🔥 High-Performance Image Component
+const LazyImage = ({ src, alt, className }) => {
+  const [loaded, setLoaded] = useState(false);
 
   return (
-    <section className="py-20 bg-black text-white" id="categories">
-      <div className="container mx-auto px-4 max-w-7xl">
+    <div className="relative w-full h-full overflow-hidden bg-gray-100">
+      {/* 1. Shimmer/Pulse Placeholder */}
+      <div 
+        className={`absolute inset-0 bg-gray-200 animate-pulse z-10 transition-opacity duration-700 ${loaded ? 'opacity-0' : 'opacity-100'}`} 
+      />
+      
+      {/* 2. Actual Image */}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async" // Browser ko render block karne se rokta hai
+        onLoad={() => setLoaded(true)}
+        className={`${className} transition-all duration-1000 ease-out will-change-transform ${
+          loaded ? "opacity-100 scale-100 blur-0" : "opacity-0 scale-105 blur-sm"
+        }`}
+      />
+    </div>
+  );
+};
+
+export function Categories() {
+  const navigate = useNavigate(); 
+
+  return (
+    <section className="py-24 md:py-32 bg-[#F5F5F7] relative font-sans overflow-hidden">
+      
+      {/* Subtle Grain Texture */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.3] z-0 mix-blend-multiply" 
+           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} 
+      />
+
+      <div className="container mx-auto px-4 md:px-8 lg:px-12 relative z-10">
         
-        {/* Minimal Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 border-b border-white/10 pb-8">
-          <div>
-            <h2 className="text-4xl md:text-7xl font-script tracking-tight mb-2">
-              Our <span className="font-script  text-amber-500">Collection</span>
-            </h2>
-            <p className="text-white/50 max-w-md">
-              Discover built-in excellence designed for the modern culinary artist.
-            </p>
-          </div>
-          <button className="hidden md:flex items-center gap-2 text-sm font-bold uppercase tracking-widest hover:text-amber-500 transition-colors mt-4 md:mt-0">
-            Download Catalogue <ArrowUpRight className="w-4 h-4" />
-          </button>
+        {/* === HEADER === */}
+        <div className="flex flex-col items-center text-center mb-16">
+           <motion.div 
+             initial={{ opacity: 0, y: 10 }}
+             whileInView={{ opacity: 1, y: 0 }}
+             viewport={{ once: true }}
+             className="flex items-center gap-2 mb-3 px-3 py-1 rounded-full bg-white/50 border border-gray-200 backdrop-blur-sm"
+           >
+              <Sparkles className="w-3 h-3 text-amber-600" />
+              <span className="text-amber-700 text-[10px] font-bold tracking-[0.2em] uppercase">
+                 The Curated Edit
+              </span>
+           </motion.div>
+           
+           <motion.h2 
+             initial={{ opacity: 0, y: 20 }}
+             whileInView={{ opacity: 1, y: 0 }}
+             transition={{ delay: 0.1 }}
+             viewport={{ once: true }}
+             className="text-4xl md:text-6xl lg:text-7xl text-gray-900 font-serif font-light leading-tight tracking-tight"
+           >
+             Our <span className="italic font-serif text-gray-400">Collections</span>
+           </motion.h2>
+           
+           <motion.div 
+             initial={{ width: 0 }}
+             whileInView={{ width: 80 }}
+             transition={{ delay: 0.3, duration: 0.8 }}
+             viewport={{ once: true }}
+             className="h-[2px] bg-amber-500 mt-6"
+           />
         </div>
 
-        {/* The Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 auto-rows-[280px] gap-4">
+        {/* === BENTO GRID === */}
+        <div className="grid grid-cols-1 md:grid-cols-4 auto-rows-[280px] md:auto-rows-[320px] gap-3 md:gap-4"> 
           
-          {categoriesData.map((cat) => (
-            <div 
-              key={cat.id} 
-              onClick={() => navigate(`/category/${cat.id}`)} // 👇 Click Event
-              className={`relative group rounded-3xl overflow-hidden bg-neutral-900 border border-white/5 cursor-pointer ${cat.className}`}
+          {categoriesData.map((cat, index) => (
+            <motion.div 
+              key={cat.id}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.05 }}
+              viewport={{ once: true, margin: "-50px" }}
+              onClick={() => navigate(`/category/${cat.id}`)}
+              className={`group relative overflow-hidden rounded-xl cursor-pointer bg-white shadow-sm hover:shadow-2xl transition-shadow duration-500 ${cat.className}`}
             >
-              {/* Image Layer */}
-              <img 
-                src={cat.image} 
-                alt={cat.name} 
-                className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 group-hover:opacity-40 transition-all duration-700 ease-in-out"
-              />
               
-              {/* Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
+              {/* Image Layer */}
+              <div className="absolute inset-0">
+                <LazyImage 
+                  src={cat.image} 
+                  alt={cat.name} 
+                  className="w-full h-full object-cover transform transition-transform duration-[1.2s] ease-out group-hover:scale-110"
+                />
+              </div>
+              
+              {/* Gradient Overlay (Darker at bottom for text visibility) */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-75 transition-opacity duration-500" />
+
+              {/* Border Effect */}
+              <div className="absolute inset-0 border-2 border-white/0 group-hover:border-white/10 transition-colors duration-500 rounded-xl z-20 pointer-events-none" />
 
               {/* Content Layer */}
-              <div className="absolute inset-0 p-6 flex flex-col justify-between">
+              <div className="absolute inset-0 p-6 flex flex-col justify-between z-20">
                 
-                {/* Top Right Arrow */}
-                <div className="flex justify-end">
-                  <span className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 group-hover:bg-amber-500 group-hover:text-black transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
-                    <ArrowUpRight className="w-5 h-5" />
-                  </span>
+                {/* Top Badge */}
+                <div className="flex justify-between items-start">
+                   <span className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full text-[10px] uppercase tracking-wider text-white border border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-500 -translate-y-2 group-hover:translate-y-0">
+                      {cat.count}
+                   </span>
+                   <div className="bg-white text-black p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 scale-75 group-hover:scale-100">
+                      <ArrowUpRight className="w-4 h-4" />
+                   </div>
                 </div>
 
-                {/* Text Content */}
-                <div>
-                  <h3 className="text-2xl md:text-3xl font-serif text-white mb-2 group-hover:translate-y-0 transition-transform duration-300">
-                    {cat.name}
-                  </h3>
-                  
-                  {/* The List (Hidden by default, slides up nicely) */}
-                  <div className="h-0 overflow-hidden group-hover:h-auto transition-all duration-500 ease-in-out">
-                    <div className="pt-2 border-t border-white/20">
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {cat.items.map((item, idx) => (
-                          <span key={idx} className="text-[11px] uppercase tracking-wider border border-white/20 px-2 py-1 rounded-md text-white/80 hover:bg-white hover:text-black transition-colors">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Subtitle (Visible only when NOT hovering) */}
-                  <p className="text-white/50 text-sm group-hover:hidden transition-opacity duration-300">
-                    {cat.items.length} Variants
-                  </p>
+                {/* Bottom Text */}
+                <div className="transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+                   <p className="text-amber-400 text-[10px] tracking-[0.2em] uppercase mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      {cat.subtitle}
+                   </p>
+                   <h3 className="text-2xl text-white font-serif font-light leading-none tracking-wide group-hover:text-white/90 transition-colors">
+                     {cat.name}
+                   </h3>
                 </div>
               </div>
-            </div>
-          ))}
 
+            </motion.div>
+          ))}
         </div>
-        
-        {/* Mobile Only Button */}
-        <div className="mt-8 text-center md:hidden">
-            <button className="px-8 py-3 bg-white text-black rounded-full text-xs font-bold uppercase tracking-widest">
-                View Full Catalogue
-            </button>
+
+        {/* === FOOTER BUTTON === */}
+        <div className="flex justify-center mt-16">
+           <button 
+             onClick={() => navigate('/catalogue')}
+             className="group flex items-center gap-3 px-8 py-4 bg-white border border-gray-200 rounded-full text-xs font-bold uppercase tracking-[0.2em] text-gray-900 hover:bg-black hover:text-white transition-all duration-300 shadow-sm hover:shadow-lg"
+           >
+             View Full Catalogue
+             <MoveRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+           </button>
         </div>
 
       </div>

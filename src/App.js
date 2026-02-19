@@ -1,62 +1,79 @@
-import React from 'react';
-import './App.css';
-import { Routes, Route } from 'react-router-dom';
+import React from "react";
+import "./App.css";
+import { Routes, Route } from "react-router-dom";
+import ProfilePage from "./pages/ProfilePage";
 
 // Context
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider } from "./context/AuthContext";
 
 // Components (Global)
-import { Header } from './components/Header';
-import { Footer } from './components/Footer'; // Agar footer global rakhna hai
+import { Header } from "./components/Header";
 
-// Pages & Components (Updated Links)
-import HomePage from './pages/HomePage';
-import Cart from './pages/Cart';
-import VisitPage from './pages/VisitPage';
+// Pages - Main Flow
+import HomePage from "./pages/HomePage";
+import Cart from "./pages/Cart";
 
-// 👇 Ye wo naye features hain jo humne abhi banaye hain
-import ChooseLayout from './components/ChooseLayout';         // Visualizer
-import ProductDetailsPage from './components/ProductDetailsPage'; // Compare & Details
-import CategoryPage from './components/CategoryPage';         // Filter Page
-import ZoneProductsPage from './components/ZoneProductsPage'; // Existing
-import BrandPage from './components/BrandPage';               // Existing
+// 👇 IMPORT THIS FILE (Ensure ye file 'src/pages' folder me bani ho)
+import ConsultationPage from "./pages/ConsultationPage";
+
+// Pages - Features
+import ChooseLayout from "./components/ChooseLayout";
+import ProductDetailsPage from "./components/ProductDetailsPage";
+import CategoryPage from "./components/CategoryPage";
+import ZoneProductsPage from "./components/ZoneProductsPage";
+import BrandPage from "./components/BrandPage";
+import VisitPage from "./pages/VisitPage";
+
+import { KnowledgeLibrary } from "./pages/KnowledgeLibrary";
+import { ExpertGuidance } from "./pages/ExpertGuidance";
+
+import { ArticleDetail } from "./pages/ArticleDetail";
+// Pehle upar import karo
+import AddProductPage from "./pages/AddProductPage";
+import { Footer } from "./components/Footer";
 
 function App() {
   return (
     <AuthProvider>
       <div className="App">
-        
-        {/* Header sab pages ke upar dikhega */}
-        <Header /> 
+        <Header />
 
         <Routes>
-          {/* 1. Home Page */}
+          {/* --- 1. DISCOVERY PHASE --- */}
           <Route path="/" element={<HomePage />} />
 
-          {/* 2. Visualizer Flow (Main Tool) */}
-          {/* Note: Maine KitchenLayoutDetail hata kar seedha ChooseLayout lagaya hai taaki naya design dikhe */}
           <Route path="/kitchen-layout/:id" element={<ChooseLayout />} />
-
-          {/* 3. Product Details (With Manual Compare) */}
+          <Route path="/products" element={<ZoneProductsPage />} />
           <Route path="/product-details/:id" element={<ProductDetailsPage />} />
-
-          {/* 4. Category Browsing (Ovens, Hobs, etc.) */}
           <Route path="/category/:slug" element={<CategoryPage />} />
+          <Route path="/brand/:brandName" element={<BrandPage />} />
+          <Route path="/visit" element={<VisitPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/expert/knowledge" element={<KnowledgeLibrary />} />
+          <Route path="/expert/guidance" element={<ExpertGuidance />} />
+          <Route path="/expert" element={<ExpertGuidance />} />
+          <Route path="/expert/article/:id" element={<ArticleDetail />} />
 
-          {/* 5. Other Pages */}
-          <Route path="/cart" element={<Cart/>} />
-          <Route path="/visit" element={<VisitPage/>} />
-          <Route path="/view-all-products" element={<ZoneProductsPage />} />
-          <Route path="/brand/:brandSlug" element={<BrandPage />} />
-          
-          {/* 6. 3D Tour Placeholder */}
-          <Route path="/3d-tour" element={<div className="mt-32 text-center text-2xl">3D Tour Coming Soon...</div>} />
+          <Route path="/admin/add-product" element={<AddProductPage />} />
+          {/* --- 2. PURCHASING PHASE (Cart) --- */}
+          <Route path="/cart" element={<Cart />} />
 
+         
+          {/* 👇 YE ROUTE ADD KARO */}
+          <Route path="/consultation" element={<ConsultationPage />} />
+
+          {/* Orders Route (Optional/Future) */}
+          <Route
+            path="/orders"
+            element={
+              <div className="mt-32 text-center text-2xl font-bold">
+                My Orders History (Coming Soon)
+              </div>
+            }
+          />
         </Routes>
-        
-        {/* Footer sab pages ke niche (Optional) */}
-        {/* <Footer /> */} 
       </div>
+      <Footer />
     </AuthProvider>
   );
 }

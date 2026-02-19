@@ -4,8 +4,11 @@ import axios from 'axios';
 import { AuthContext } from "../context/AuthContext";
 import { 
   X, Plus, Check, ArrowRight, ShoppingCart, 
-  Trash2, Video, Eye, Info 
+  Trash2, Video, Eye, Info, Loader2 
 } from "lucide-react";
+
+// 🔥 CLOUDINARY CONFIG
+const CLOUDINARY_BASE_URL = "https://res.cloudinary.com/dcljdkqer/image/upload/";
 
 // Layout Data
 const kitchenLayouts = [
@@ -19,7 +22,7 @@ const kitchenLayouts = [
       { x: 32, y: 55, name: "Hob" },
       { x: 82, y: 55, name: "Oven" },
       { x: 51, y: 55, name: "Sink" },
-      { x: 82, y: 30, name: "Referigerators" },
+      { x: 82, y: 30, name: "Refrigerator" }, // ✅ Fixed Spelling
     ],
   },
   {
@@ -32,10 +35,9 @@ const kitchenLayouts = [
       { x: 43, y: 55, name: "Hob" },
       { x: 70, y: 27, name: "Oven" },
       { x: 10, y: 55, name: "Sink" },
-      { x: 25, y: 80, name: "Referigerators" },
+      { x: 25, y: 80, name: "Refrigerator" }, // ✅ Fixed Spelling
     ],
   },
-  // ... Baaki layouts same rahenge
   {
     id: 3,
     name: "Galley Kitchen",
@@ -47,7 +49,7 @@ const kitchenLayouts = [
     name: "One Wall Kitchen",
     image: require("../assests/layouts/Onewall-shaped.jpg"),
     positions: [
-      { x: 18, y: 60, name: "Referigerators" },
+      { x: 18, y: 60, name: "Refrigerator" }, // ✅ Fixed Spelling
       { x: 86, y: 40, name: "Oven" },
     ],
   },
@@ -59,7 +61,7 @@ const kitchenLayouts = [
       { x: 52, y: 27, name: "Oven" },
       { x: 47, y: 55, name: "Hob" },
       { x: 64, y: 55, name: "Sink" },
-      { x: 15, y: 55, name: "Referigerators" },
+      { x: 15, y: 55, name: "Refrigerator" }, // ✅ Fixed Spelling
     ],
   },
   {
@@ -76,22 +78,30 @@ const kitchenLayouts = [
 export default function ChooseLayout() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useContext(AuthContext);
+  const { token, refreshCart } = useContext(AuthContext);
 
   const [activeZone, setActiveZone] = useState(null); 
   const [kitchenSelections, setKitchenSelections] = useState({});
   const [dbProducts, setDbProducts] = useState([]);
+  const [addingToCart, setAddingToCart] = useState(false);
 
   const selectedLayout = kitchenLayouts.find((l) => l.id === parseInt(id));
 
-  // --- Mock Fetch ---
+  // --- Fetch Products ---
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const res = await axios.get('http://localhost:5000/api/products');
-        setDbProducts(res.data);
+        if (Array.isArray(res.data)) {
+            setDbProducts(res.data);
+        } else if (res.data && res.data.products) {
+            setDbProducts(res.data.products);
+        } else {
+            setDbProducts([]);
+        }
       } catch (error) {
-        console.log("Using Mock Data");
+        console.log("Error fetching products", error);
+        setDbProducts([]);
       }
     };
     fetchProducts();
@@ -99,9 +109,29 @@ export default function ChooseLayout() {
 
   if (!selectedLayout) return <div className="h-screen flex items-center justify-center bg-black text-white">Layout Not Found</div>;
 
-  // Helpers
+  // --- ✅ FIX 1: Helper for Images (Array handling + Cloudinary) ---
+  const getImgUrl = (img) => {
+      if (!img) return "https://placehold.co/400x300?text=No+Image";
+      let url = Array.isArray(img) ? img[0] : img;
+      if (url.startsWith('http')) return url;
+      return `${CLOUDINARY_BASE_URL}${url}.jpg`;
+  };
+
+  // --- ✅ FIX 2: Smart Filtering ---
   const getZoneProducts = (zoneName) => {
-    return dbProducts.filter(p => p.category.toLowerCase().includes(zoneName.toLowerCase()) || p.name.includes(zoneName));
+    if (!zoneName) return [];
+    let search = zoneName.toLowerCase();
+
+    // Map keywords
+    if (search.includes('refrigerator') || search.includes('fridge')) search = 'refrigerator';
+    if (search.includes('oven') || search.includes('microwave')) search = 'oven';
+    if (search.includes('hob') || search.includes('cooktop')) search = 'hob';
+
+    return dbProducts.filter(p => {
+        const cat = p.category ? p.category.toLowerCase() : "";
+        const name = p.name ? p.name.toLowerCase() : "";
+        return cat.includes(search) || name.includes(search);
+    });
   };
 
   const handlePointerClick = (index) => {
@@ -129,27 +159,45 @@ export default function ChooseLayout() {
     navigate(`/product-details/${product._id}`);
   };
 
-  const handleAddToCartAll = () => {
-    alert("Products added to cart!");
+  // --- ✅ FIX 3: Real Add to Cart ---
+  const handleAddToCartAll = async () => {
+    const items = Object.values(kitchenSelections);
+    if (items.length === 0) return alert("Select at least one item.");
+    if (!token) return alert("Please Login to save project.");
+
+    setAddingToCart(true);
+    try {
+        for (const item of items) {
+            await axios.post('http://localhost:5000/api/cart/add', 
+                { productId: item._id, quantity: 1 }, 
+                { headers: { 'auth-token': token } }
+            );
+        }
+        await refreshCart();
+        alert("Configuration Saved!");
+        navigate('/cart');
+    } catch (err) {
+        alert("Error saving configuration.");
+    } finally {
+        setAddingToCart(false);
+    }
   };
 
   const activeZoneName = activeZone !== null ? selectedLayout.positions[activeZone].name : "";
   const availableProducts = activeZone !== null ? getZoneProducts(activeZoneName) : [];
-  const totalPrice = Object.values(kitchenSelections).reduce((acc, i) => acc + i.price, 0);
+  const totalPrice = Object.values(kitchenSelections).reduce((acc, i) => acc + (i.price || 0), 0);
 
   return (
     <div className="min-h-screen bg-neutral-900 font-sans">
       
-      {/* ================= SECTION 1: VISUALIZER (TOP - 85% Height) ================= */}
-      <div className="relative w-full h-[85vh] mt-[100px]  bg-black overflow-hidden group">
+      {/* ================= SECTION 1: VISUALIZER ================= */}
+      <div className="relative w-full h-[85vh] mt-[100px] bg-black overflow-hidden group">
         
-        {/* Main Image */}
         <img 
           src={selectedLayout.image} 
           alt="Layout" 
           className="w-full h-full object-cover opacity-80 transition-transform duration-700 hover:scale-105" 
         />
-        {/* Dark Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60 pointer-events-none" />
 
         {/* Header Overlay */}
@@ -186,7 +234,6 @@ export default function ChooseLayout() {
                 {isSelected ? <Check className="w-5 h-5 text-white" /> : <Plus className="w-6 h-6 text-white" />}
                 </button>
                 
-                {/* Label below dot */}
                 <div className="absolute top-14 left-1/2 -translate-x-1/2 text-white text-[10px] font-bold uppercase tracking-[0.2em] text-shadow-sm whitespace-nowrap bg-black/60 backdrop-blur-md px-3 py-1 rounded border border-white/10">
                     {pos.name}
                 </div>
@@ -194,12 +241,11 @@ export default function ChooseLayout() {
             );
         })}
 
-        {/* ================= 4. RIGHT SIDEBAR (SLIDING GLASS PANEL) - FIXED DESIGN ================= */}
+        {/* ================= RIGHT SIDEBAR ================= */}
         <div 
             className={`absolute top-0 right-0 h-full w-full md:w-[450px] bg-[#0a0a0a]/95 backdrop-blur-2xl border-l border-white/10 z-40 transform transition-transform duration-500 ease-in-out flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)]
             ${activeZone !== null ? "translate-x-0" : "translate-x-full"}`}
         >
-            {/* Panel Header */}
             <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <div>
                     <span className="text-amber-500 text-[10px] font-bold uppercase tracking-[0.2em]">Select Appliance</span>
@@ -210,40 +256,31 @@ export default function ChooseLayout() {
                 </button>
             </div>
 
-            {/* Product List inside Sidebar (Fixed: Row Layout instead of Grid) */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
                 {availableProducts.length > 0 ? availableProducts.map(prod => (
                     <div 
                         key={prod._id} 
                         onClick={() => handleSelectProduct(activeZoneName, prod)}
-                        // 👇 Styling updated for "Glass Row" look
                         className="group relative flex items-center gap-4 p-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all cursor-pointer overflow-hidden"
                     >
-                        {/* Image Container */}
+                        {/* ✅ FIX 4: Use getImgUrl here */}
                         <div className="w-20 h-20 bg-white rounded-lg flex-shrink-0 flex items-center justify-center p-2">
-                            <img src={prod.image} alt="" className="max-h-full max-w-full object-contain" />
+                            <img src={getImgUrl(prod.image)} alt="" className="max-h-full max-w-full object-contain mix-blend-multiply" />
                         </div>
                         
-                        {/* Details */}
                         <div className="flex-1 min-w-0">
                             <h4 className="text-white font-medium text-sm line-clamp-1 mb-1">{prod.name}</h4>
                             <div className="flex items-center gap-3">
-                                <span className="text-amber-500 font-bold text-sm">₹{prod.price.toLocaleString()}</span>
-                                <span className="text-white/30 text-xs line-through">₹{(prod.price * 1.2).toFixed(0)}</span>
-                            </div>
-                            <div className="flex gap-2 mt-2">
-                                <span className="text-[9px] bg-white/10 text-white/60 px-2 py-0.5 rounded border border-white/5 uppercase tracking-wider">Standard</span>
+                                <span className="text-amber-500 font-bold text-sm">₹{prod.price?.toLocaleString()}</span>
                             </div>
                         </div>
-
-                        {/* Select Arrow Icon (Visible on Hover) */}
                         <div className="pr-2 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
                              <ArrowRight className="w-5 h-5 text-amber-500" />
                         </div>
                     </div>
                 )) : (
                     <div className="text-center py-20">
-                        <p className="text-white/40 text-sm">No products found for this category.</p>
+                        <p className="text-white/40 text-sm">No products found.</p>
                     </div>
                 )}
             </div>
@@ -251,11 +288,9 @@ export default function ChooseLayout() {
 
       </div>
 
-
-    {/* ================= SECTION 2: ACTION BAR & GRID (BOTTOM) ================= */}
+    {/* ================= SECTION 2: GRID ================= */}
       <div id="product-container" className="container mx-auto px-4 max-w-7xl -mt-8 relative z-30 mb-20">
         
-        {/* 1. Action Bar */}
         <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-6 mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h2 className="text-xl font-serif font-bold text-gray-900">Your Configuration</h2>
@@ -272,14 +307,15 @@ export default function ChooseLayout() {
                 </div>
                 <button 
                     onClick={handleAddToCartAll}
-                    className="flex-1 md:flex-none bg-black text-white px-8 py-4 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-gray-800 transition-all flex items-center justify-center gap-2 shadow-lg"
+                    disabled={addingToCart}
+                    className="flex-1 md:flex-none bg-black text-white px-8 py-4 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-gray-800 transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
                 >
-                    <ShoppingCart className="w-4 h-4" /> Buy All Items
+                    {addingToCart ? <Loader2 className="animate-spin w-4 h-4"/> : <ShoppingCart className="w-4 h-4" />}
+                    {addingToCart ? "Saving..." : "Buy All Items"}
                 </button>
             </div>
         </div>
 
-        {/* 2. Container Wise Grid (The Cards - 3 per row on Desktop) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {selectedLayout.positions.map((pos, i) => {
                 const item = kitchenSelections[pos.name];
@@ -287,7 +323,6 @@ export default function ChooseLayout() {
                 return (
                     <div key={i} className={`flex flex-col h-full rounded-2xl border transition-all duration-300 overflow-hidden group ${item ? "bg-white border-green-200 shadow-md ring-1 ring-green-100" : "bg-white border-dashed border-gray-300 hover:border-gray-400"}`}>
                         
-                        {/* Header of Card */}
                         <div className={`p-4 border-b flex justify-between items-center ${item ? "bg-green-50/50 border-green-100" : "bg-gray-50 border-gray-200"}`}>
                             <span className="text-xs font-bold uppercase tracking-widest text-gray-500">{pos.name}</span>
                             {item && (
@@ -297,23 +332,21 @@ export default function ChooseLayout() {
                             )}
                         </div>
 
-                        {/* Body of Card */}
                         <div className="flex-1 p-6 flex flex-col items-center justify-center text-center">
                             {item ? (
-                                // FILLED CARD
                                 <>
+                                    {/* ✅ FIX 5: Use getImgUrl here too */}
                                     <div className="w-40 h-40 mb-6 p-4 bg-white rounded-xl border border-gray-100 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-                                        <img src={item.image} alt="" className="max-h-full max-w-full object-contain" />
+                                        <img src={getImgUrl(item.image)} alt="" className="max-h-full max-w-full object-contain mix-blend-multiply" />
                                     </div>
                                     
                                     <div className="w-full mb-4">
                                         <h3 className="text-sm font-bold text-gray-900 line-clamp-2 mb-1 min-h-[40px] leading-relaxed">
                                             {item.name}
                                         </h3>
-                                        <p className="text-lg text-amber-600 font-bold font-serif">₹{item.price.toLocaleString()}</p>
+                                        <p className="text-lg text-amber-600 font-bold font-serif">₹{item.price?.toLocaleString()}</p>
                                     </div>
                                     
-                                    {/* View Details Button */}
                                     <button 
                                         onClick={() => handleViewDetails(item)}
                                         className="w-full py-3 border border-gray-200 rounded-lg text-xs font-bold uppercase hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-2"
@@ -322,7 +355,6 @@ export default function ChooseLayout() {
                                     </button>
                                 </>
                             ) : (
-                                // EMPTY CARD
                                 <>
                                     <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4 text-gray-400 group-hover:bg-amber-50 group-hover:text-amber-500 transition-colors">
                                         <Plus className="w-8 h-8" />
