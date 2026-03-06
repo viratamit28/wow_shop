@@ -15,6 +15,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+app.get('/', (req, res) => {
+    res.send("Wow Shop Backend is 100% Live and Working! 🚀");
+});
+
 // Universal paths for live servers (No C:/ drive paths)
 app.use('/images', express.static(path.join(__dirname, 'images')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
