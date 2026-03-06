@@ -31,34 +31,41 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // --- 3. REGISTER API ---
-router.post('/register', upload.single('profileImage'), async (req, res) => {
-  try {
-    const { name, email, password, address, lat, lng } = req.body;
 
-    const emailExist = await User.findOne({ email });
-    if (emailExist) return res.status(400).send('Email already exists');
+router.post('/register', async (req, res) => {
+    try {
+        
+        const { name, email, password, phone, address, lat, lng } = req.body;
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+        // Check if user exists
+        let user = await User.findOne({ email });
+        if (user) {
+            return res.status(400).json({ error: "Sorry a user with this email already exists" });
+        }
 
-    let imagePath = '';
-    if (req.file) imagePath = req.file.path;
+        const salt = await bcrypt.genSalt(10);
+        const secPassword = await bcrypt.hash(password, salt);
 
-    const user = new User({
-      name,
-      email,
-      password: hashedPassword,
-      address,
-      location: { lat, lng },
-      profileImage: imagePath
-    });
+        user = await User.create({
+            name: name,
+            email: email,
+            phone: phone,         
+            password: secPassword,
+            address: address,
+            lat: lat,
+            lng: lng
+        });
 
-    await user.save();
-    res.send({ user: user._id, message: "Registered Successfully!" });
+        // Generate Token
+        const data = { user: { id: user.id } };
+        const authToken = jwt.sign(data, process.env.JWT_SECRET);
 
-  } catch (err) {
-    res.status(400).send(err.message);
-  }
+        res.json({ token: authToken, user: user });
+
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send("Internal Server Error");
+    }
 });
 
 // --- 4. LOGIN API ---

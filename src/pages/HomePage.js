@@ -1,34 +1,40 @@
 // src/pages/HomePage.js
-import React from 'react';
-import { Header } from '../components/Header';
-import { Footer } from "../components/Footer";
+import React, { useEffect } from 'react';
+import { motion } from 'framer-motion';
+
 import { HeroSlider } from '../components/HeroSlider';
 import { BrandPartners } from '../components/BrandPartners';
 import { Categories } from '../components/Categories';
 import KitchenDesign from '../components/KitchenDesign';
-import { BookingConsultation as NewsLetter } from '../components/LuxuryDemoSection';
+import LuxuryDemoSection from '../components/LuxuryDemoSection';
 import ComparisonBanner from '../components/ComparisonBanner';
-import KitchenSizer  from '../components/KitchenSizer';
+import KitchenSizer from '../components/KitchenSizer';
 import { ExpertPromise } from '../components/ExpertPromise';
 
-// import ProductGridComponent from '../components/ui/ProductGridComponent';
+export default function HomePage() {
 
-function HomePage() {
+  
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   return (
-    <div>
-      <Header />
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} 
+      className="w-full bg-white flex flex-col overflow-hidden"
+    >
       <HeroSlider />
       <KitchenDesign />
-      <ExpertPromise />
+
+      <ComparisonBanner />
       <Categories />
       <KitchenSizer />
       <BrandPartners />
-      <ComparisonBanner />
-      <NewsLetter/>
-      {/* <ProductGridComponent />  */}
-      <Footer />
-    </div>
+      <LuxuryDemoSection />
+      <ExpertPromise />
+    </motion.div>
   );
 }
-
-export default HomePage;

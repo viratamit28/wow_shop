@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const Consultation = require('../models/Consultation');
 const fetchuser = require('../middleware/verifyToken');
-const axios = require('axios'); // ✅ [ADDED] CRM se baat karne ke liye
+const axios = require('axios'); 
 
 // =================================================================
-// ROUTE 1: CREATE REQUEST (Save to Local MongoDB)
+// ROUTE 1: CREATE REQUEST (Save to MongoDB + Auto Sync with CRM)
+// POST: /api/consultation/create
 // =================================================================
 router.post('/create', fetchuser, async (req, res) => {
     try {
@@ -17,82 +18,67 @@ router.post('/create', fetchuser, async (req, res) => {
             return res.status(401).json({ success: false, error: "Invalid Token Data" });
         }
 
-        // Data receive kar rahe hain
         const { customerDetails, appointment, interestedProducts, totalEstimatedValue } = req.body;
 
-        // Basic Validation
-        if (!customerDetails || !interestedProducts || !appointment) {
-            return res.status(400).json({ success: false, error: "Missing details" });
+        if (!customerDetails || !customerDetails.name || !customerDetails.phone) {
+            return res.status(400).json({ success: false, error: "Name and Phone are required" });
         }
 
+        // 1️⃣ SABSE PEHLE: MONGODB ME SAVE KARO (Safe & Guaranteed)
         const newConsultation = new Consultation({
             user: userId,
             customerDetails: {
                 name: customerDetails.name,
                 phone: customerDetails.phone,
-                email: customerDetails.email,
-                address: customerDetails.address // Object pass kar rahe hain
+                email: customerDetails.email || "",
+                address: { line: customerDetails.address?.line || "Not Provided" }
             },
             appointment: {
-                date: appointment.date,
-                timeSlot: appointment.timeSlot,
-                message: appointment.message
+                date: appointment?.date || new Date(),
+                timeSlot: appointment?.timeSlot || "As soon as possible",
+                message: appointment?.message || ""
             },
-            interestedProducts, 
-            totalEstimatedValue,
+            interestedProducts: interestedProducts || [], 
+            totalEstimatedValue: totalEstimatedValue || 0,
             status: 'Pending Expert Call' 
         });
 
         const savedConsultation = await newConsultation.save();
-        console.log("✅ [CREATE] Success! ID:", savedConsultation._id);
+        console.log("✅ [MONGODB] Success! Data saved. ID:", savedConsultation._id);
 
-        res.json({ success: true, consultation: savedConsultation, message: "Request Sent Successfully" });
+        // 2️⃣ DUSRA STEP: CRM KO BHEJO (TRY-CATCH KE ANDAR)
+        // Note: Humne yahan await ko block nahi kiya hai, ye background sync ki tarah kaam karega.
+        // CRM fail hone par API crash nahi hogi.
+        try {
+            console.log("🚀 [CRM] Sending data to wowshopping.4deal.co...");
+            // CRM Data Payload matching the exact frontend structure
+            await axios.post('https://wowshopping.4deal.co/lmsapi/addlead.ashx', req.body, { 
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 5000 // 5 seconds timeout
+            });
+            console.log("✅ [CRM] Lead successfully synced to CRM!");
+        } catch (crmError) {
+            console.error("⚠️ [CRM WARNING] CRM Sync Failed or Timed Out.");
+            // We just log the error, we DO NOT send this error to the user
+            console.error("CRM Error Message:", crmError.message);
+        }
+
+        // 3️⃣ TISRA STEP: FRONTEND KO SUCCESS BHEJO
+        res.status(200).json({ 
+            success: true, 
+            consultation: savedConsultation, 
+            message: "Request Sent Successfully" 
+        });
 
     } catch (error) {
         console.error("🔥 [CREATE] Server Error:", error.message);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ success: false, error: "Internal Server Error" });
     }
 });
 
 // =================================================================
-// ROUTE 2: CRM INTEGRATION (CORS Fix Wala Route) ✅ [NEW ADDED]
-// URL: http://localhost:5000/api/consultation/add-lead
-// =================================================================
-router.post('/add-lead', async (req, res) => {
-    try {
-        console.log("🚀 [CRM] Sending data to wowshopping.4deal.co...");
-        console.log("📦 Payload:", req.body);
-
-        // Backend se CRM ko call (Server-to-Server, No CORS)
-        const crmResponse = await axios.post(
-            'https://wowshopping.4deal.co/lmsapi/addlead.ashx',
-            req.body,
-            {
-                headers: { 'Content-Type': 'application/json' }
-            }
-        );
-
-        console.log("✅ [CRM] Response:", crmResponse.data);
-
-        // CRM ka response frontend ko wapas bhejo
-        res.status(200).json({
-            success: true,
-            data: crmResponse.data
-        });
-
-    } catch (error) {
-        console.error("🔥 [CRM] Error:", error.message);
-        // Agar CRM se error aaye tab bhi frontend ko batao
-        res.status(500).json({
-            success: false,
-            message: "Failed to connect to CRM",
-            error: error.message
-        });
-    }
-});
-
-// =================================================================
-// ROUTE 3: GET MY HISTORY
+// ROUTE 2: GET MY HISTORY (For User Profile Dashboard)
+// GET: /api/consultation/mine
 // =================================================================
 router.get('/mine', fetchuser, async (req, res) => {
     try {
@@ -109,7 +95,8 @@ router.get('/mine', fetchuser, async (req, res) => {
 });
 
 // =================================================================
-// ROUTE 4: CANCEL REQUEST
+// ROUTE 3: CANCEL REQUEST (User Cancels from Profile)
+// PUT: /api/consultation/cancel/:id
 // =================================================================
 router.put('/cancel/:id', fetchuser, async (req, res) => {
     try {
@@ -134,21 +121,22 @@ router.put('/cancel/:id', fetchuser, async (req, res) => {
 
     } catch (error) {
         console.error("🔥 [CANCEL] Error:", error.message);
-        res.status(500).send("Internal Server Error");
+        res.status(500).json({ success: false, error: "Internal Server Error" });
     }
 });
 
 // =================================================================
-// ROUTE 5: GET ALL (Admin)
+// ROUTE 4: GET ALL (Admin Dashboard)
+// GET: /api/consultation/all
 // =================================================================
 router.get('/all', async (req, res) => {
     try {
         const consultations = await Consultation.find()
             .populate('user', 'name email') 
-            .sort({ createdAt: -1 });     
+            .sort({ createdAt: -1 });    
         res.json({ success: true, data: consultations });
     } catch (error) {
-        res.status(500).send("Internal Server Error");
+        res.status(500).json({ success: false, error: "Internal Server Error" });
     }
 });
 

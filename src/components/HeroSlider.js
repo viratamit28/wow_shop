@@ -1,7 +1,10 @@
+// src/components/HeroSlider.jsx
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // 👈 1. IMPORT THIS
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, ArrowRight, ShieldCheck, Star, Users } from "lucide-react";
+// 🔥 FIX 1: Modal Import kiya
+import { BookingConsultation } from "./BookingConsultation"; 
 
 const slides = [
   {
@@ -10,8 +13,9 @@ const slides = [
     title: "Breathe Pure Luxury",
     description: "Experience whisper-quiet performance with our premium range of designer kitchen hoods.",
     image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=2053&auto=format&fit=crop", 
-    cta: "Explore Hoods",
-    path: "/category/hoods" // 👈 2. LINK ADDED (To Products Page)
+    cta: "Explore Chimneys",
+    path: "/products?category=Chimneys",
+    action: "link" 
   },
   {
     id: 2,
@@ -19,8 +23,9 @@ const slides = [
     title: "Precision Meets Perfection",
     description: "Master the art of cooking with built-in ovens designed for professional chefs at home.",
     image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80", 
-    cta: "Discover More",
-    path: "/products" // 👈 2. LINK ADDED (To Products Page)
+    cta: "Discover Ovens",
+    path: "/products?category=Ovens",
+    action: "link"
   },
   {
     id: 3,
@@ -28,23 +33,27 @@ const slides = [
     title: "Visualize Before You Buy",
     description: "Don't guess. See exactly how these appliances fit your space with our 3D Studio.",
     image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80",
-    cta: "Try 3D Studio",
-    path: "/studio" // 👈 2. LINK ADDED (To Studio Page)
+    cta: "Book Consultation",
+    path: "#",
+    action: "modal" // 🔥 FIX 2: Ye flag button ko batayega ki modal kholna hai
   },
 ];
 
 export function HeroSlider() {
-  const navigate = useNavigate(); // 👈 3. INITIALIZE NAVIGATION
+  const navigate = useNavigate(); 
   const [current, setCurrent] = useState(0);
   const [autoplay, setAutoplay] = useState(true);
+  
+  // 🔥 FIX 3: Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    if (!autoplay) return;
+    if (!autoplay || isModalOpen) return; // Agar modal open hai, toh slider auto-play band ho jayega
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % slides.length);
     }, 6000); 
     return () => clearInterval(timer);
-  }, [autoplay, current]);
+  }, [autoplay, slides.length, isModalOpen]);
 
   const handleNext = () => {
     setAutoplay(false);
@@ -56,168 +65,120 @@ export function HeroSlider() {
     setCurrent((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
   };
 
-  // --- ANIMATIONS ---
-  const textVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: (i) => ({
-      opacity: 1,
-      y: 0,
-      transition: { delay: i * 0.1, duration: 0.8, ease: [0.22, 1, 0.36, 1] },
-    }),
-    exit: { opacity: 0, y: -10, transition: { duration: 0.3 } }
+  // 🔥 FIX 4: Click Handler (Route vs Modal)
+  const handleCtaClick = (slide) => {
+    if (slide.action === "modal") {
+      setIsModalOpen(true);
+      setAutoplay(false); // Pause slider
+    } else {
+      navigate(slide.path);
+    }
   };
 
-  const imageVariants = {
-    initial: { scale: 1.1 },
-    animate: { scale: 1, transition: { duration: 8, ease: "easeOut" } }
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.15, delayChildren: 0.2 } },
+    exit: { opacity: 0, transition: { duration: 0.3 } }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 40 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }
   };
 
   return (
-    <section className="relative h-screen w-full overflow-hidden bg-[#F5F5F7] text-gray-900">
+    <section className="relative h-screen w-full overflow-hidden bg-black font-sans">
       
-      {/* 1. BACKGROUND IMAGE LAYER */}
-      <AnimatePresence mode="wait">
+      {/* Background Images */}
+      <AnimatePresence initial={false}>
         <motion.div
-          key={slides[current].id}
-          className="absolute inset-0"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1 }} 
+          key={current}
+          className="absolute inset-0 z-0"
+          initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+          transition={{ duration: 1.5, ease: "easeInOut" }}
         >
-          <motion.img
-            src={slides[current].image}
-            alt={slides[current].title}
-            className="h-full w-full object-cover"
-            variants={imageVariants}
-            initial="initial"
-            animate="animate"
-          />
-          
-          {/* IMPORTANT: The "Matte" Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#F5F5F7] via-[#F5F5F7]/80 to-transparent md:via-[#F5F5F7]/40" />
-          
-          {/* Mobile bottom fade for readability */}
-          <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-[#F5F5F7] to-transparent md:hidden" />
+          <img src={slides[current].image} alt={slides[current].title} className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
         </motion.div>
       </AnimatePresence>
 
-      {/* 2. MAIN TEXT CONTENT */}
-      <div className="absolute inset-0 flex items-center px-6 md:px-20 lg:px-24">
-        <div className="w-full max-w-2xl overflow-hidden z-10 pt-20 md:pt-0">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={slides[current].id}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="space-y-6"
-            >
-              {/* Category */}
-              <motion.div custom={0} variants={textVariants} className="flex items-center gap-4">
-                <span className="h-[1px] w-8 md:w-12 bg-amber-600"></span>
-                <span className="text-[10px] md:text-xs font-bold tracking-[0.3em] text-amber-700 uppercase">
-                  {slides[current].category}
-                </span>
-              </motion.div>
-
-              {/* Headline (Serif & Dark) */}
-              <motion.h1 
-                custom={1} 
-                variants={textVariants} 
-                className="font-serif text-4xl md:text-6xl lg:text-7xl font-medium text-gray-900 leading-[1.1]"
+      {/* Text Content */}
+      <div className="absolute inset-0 flex items-center z-10">
+        <div className="container mx-auto px-6 md:px-12 lg:px-24">
+          <div className="w-full max-w-2xl pt-20 md:pt-0">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={slides[current].id}
+                variants={containerVariants} initial="hidden" animate="visible" exit="exit"
+                className="space-y-6 md:space-y-8"
               >
-                {slides[current].title}
-              </motion.h1>
+                <motion.div variants={itemVariants} className="flex items-center gap-4">
+                  <span className="h-[1px] w-8 md:w-16 bg-amber-500"></span>
+                  <span className="text-[10px] md:text-[11px] font-bold tracking-[0.3em] text-amber-500 uppercase">
+                    {slides[current].category}
+                  </span>
+                </motion.div>
 
-              {/* Description (Grey & Sans-serif) */}
-              <motion.p 
-                custom={2} 
-                variants={textVariants} 
-                className="max-w-md text-sm md:text-lg text-gray-600 font-light leading-relaxed"
-              >
-                {slides[current].description}
-              </motion.p>
+                <motion.h1 variants={itemVariants} className="font-serif text-5xl md:text-7xl lg:text-[5rem] font-medium text-white leading-[1.05] tracking-tight drop-shadow-lg">
+                  {slides[current].title}
+                </motion.h1>
 
-              {/* CTA Button (Solid Dark with Hover) */}
-              <motion.div custom={3} variants={textVariants} className="pt-4">
-                <button 
-                  onClick={() => navigate(slides[current].path)} // 👈 4. CLICK HANDLER ADDED
-                  className="group flex items-center gap-3 bg-gray-900 text-white px-8 py-4 text-xs md:text-sm uppercase tracking-widest hover:bg-amber-600 transition-all duration-300 rounded-sm shadow-lg shadow-gray-200"
-                >
-                  {slides[current].cta}
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </button>
+                <motion.p variants={itemVariants} className="max-w-md text-sm md:text-lg text-gray-300 font-light leading-relaxed drop-shadow-md">
+                  {slides[current].description}
+                </motion.p>
+
+                <motion.div variants={itemVariants} className="pt-4">
+                  <button 
+                    onClick={() => handleCtaClick(slides[current])} 
+                    className="group flex items-center gap-4 bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-4 text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-amber-600 hover:border-amber-600 transition-all duration-500 rounded-full shadow-lg"
+                  >
+                    {slides[current].cta}
+                    <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                       <ArrowRight className="h-3 w-3 transform group-hover:translate-x-0.5 transition-transform duration-300" />
+                    </div>
+                  </button>
+                </motion.div>
               </motion.div>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* 3. NAVIGATION CONTROLS (Bottom Right) */}
-      <div className="absolute bottom-24 right-6 md:right-20 flex items-center gap-6 z-20">
-        
-        {/* Pagination Number */}
-        <div className="flex items-baseline gap-1 text-gray-900 font-serif">
-            <span className="text-3xl">0{current + 1}</span>
-            <span className="text-sm text-gray-400">/ 0{slides.length}</span>
-        </div>
-
-        {/* Buttons */}
-        <div className="flex gap-2">
-          <button 
-            onClick={handlePrev}
-            className="h-12 w-12 border border-gray-300 flex items-center justify-center hover:bg-gray-900 hover:text-white hover:border-gray-900 transition-all duration-300 text-gray-600 rounded-full"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button 
-            onClick={handleNext}
-            className="h-12 w-12 border border-gray-300 flex items-center justify-center hover:bg-gray-900 hover:text-white hover:border-gray-900 transition-all duration-300 text-gray-600 rounded-full"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* 4. PROGRESS BAR (Subtle at bottom) */}
-      <div className="absolute bottom-20 left-6 md:left-24 w-24 md:w-48 h-[2px] bg-gray-200 z-20">
-        <motion.div 
-            key={current}
-            initial={{ width: "0%" }}
-            animate={{ width: "100%" }}
-            transition={{ duration: 6, ease: "linear" }}
-            className="h-full bg-amber-600"
-        />
-      </div>
-
-      {/* 5. BOTTOM TRUST STRIP (Consistent with Header Theme) */}
-      <div className="absolute bottom-0 left-0 w-full z-20 border-t border-gray-200 bg-white/80 backdrop-blur-md py-4 md:py-5">
-        <div className="container mx-auto px-6">
-          <div className="flex justify-between md:justify-center items-center gap-4 md:gap-16 text-[10px] md:text-xs uppercase tracking-[0.15em] text-gray-600 font-bold">
-            
-            <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-amber-600 hidden md:block" />
-                <span>Authorized Partners</span>
-            </div>
-            
-            <span className="text-gray-300 hidden md:block">|</span>
-            
-            <div className="flex items-center gap-2">
-                <Star className="w-4 h-4 text-amber-600 hidden md:block" />
-                <span>Expert Guidance</span>
-            </div>
-            
-            <span className="text-gray-300 hidden md:block">|</span>
-
-            <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-amber-600 hidden md:block" />
-                <span>Genuine Warranty</span>
-            </div>
-
+            </AnimatePresence>
           </div>
         </div>
       </div>
+
+      {/* Controls & Progress Bar */}
+      <div className="absolute bottom-28 md:bottom-24 right-6 md:right-12 lg:right-24 flex flex-col md:flex-row items-end md:items-center gap-6 md:gap-10 z-20">
+        <div className="flex items-baseline gap-2 text-white font-serif drop-shadow-md">
+            <span className="text-3xl md:text-4xl font-medium">{current + 1}</span>
+            <span className="text-sm text-gray-400 font-light">/ {slides.length}</span>
+        </div>
+        <div className="flex gap-4">
+          <button onClick={handlePrev} className="h-12 w-12 border border-white/20 bg-black/20 backdrop-blur-md flex items-center justify-center hover:bg-amber-600 hover:border-amber-600 transition-all duration-500 text-white rounded-full"><ChevronLeft className="h-5 w-5" /></button>
+          <button onClick={handleNext} className="h-12 w-12 border border-white/20 bg-black/20 backdrop-blur-md flex items-center justify-center hover:bg-amber-600 hover:border-amber-600 transition-all duration-500 text-white rounded-full"><ChevronRight className="h-5 w-5" /></button>
+        </div>
+      </div>
+
+      <div className="absolute bottom-28 md:bottom-24 left-6 md:left-12 lg:left-24 w-32 md:w-64 h-[2px] bg-white/20 z-20 overflow-hidden">
+        <motion.div key={current} initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 6, ease: "linear" }} className="h-full bg-amber-500"/>
+      </div>
+
+      {/* Trust Bar */}
+      <div className="absolute bottom-0 left-0 w-full z-20 border-t border-white/10 bg-black/40 backdrop-blur-xl py-5">
+        <div className="container mx-auto px-6">
+          <div className="flex justify-between md:justify-center items-center gap-4 md:gap-16 text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-gray-300 font-bold">
+            <div className="flex items-center gap-3 hover:text-amber-500 transition-colors cursor-default"><Users className="w-4 h-4 text-amber-500 hidden sm:block" /><span>Authorized Partners</span></div>
+            <span className="text-gray-600 hidden md:block">|</span>
+            <div className="flex items-center gap-3 hover:text-amber-500 transition-colors cursor-default"><Star className="w-4 h-4 text-amber-500 hidden sm:block" /><span>Expert Guidance</span></div>
+            <span className="text-gray-600 hidden md:block">|</span>
+            <div className="flex items-center gap-3 hover:text-amber-500 transition-colors cursor-default"><ShieldCheck className="w-4 h-4 text-amber-500 hidden sm:block" /><span>Genuine Warranty</span></div>
+          </div>
+        </div>
+      </div>
+
+      {/* 🔥 FIX 5: Render Modal */}
+      <BookingConsultation 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
 
     </section>
   );

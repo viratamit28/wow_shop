@@ -1,72 +1,101 @@
 import React, { useState, useEffect } from "react";
-import { 
-  X, ChevronRight, ArrowRightLeft, 
-  CheckCircle2, Loader2, ChevronLeft, Scale, Info, ImageOff
-} from "lucide-react";
+import { X, ArrowRight, ArrowLeft, Check, Loader2, Scale, ChevronRight, ImageOff, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// ==================== CONFIGURATION ====================
-const API_BASE_URL = "http://localhost:5000/api"; 
+import refrigeratorImg from '../assests/r1.jpg';
+import hobImg from '../assests/h1.jpg';
+import chimneyImg from '../assests/c1.jpg';
+import ovenImg from '../assests/o1.jpg';
+import dishwasherImg from '../assests/d1.jpg';
+import microwaveImg from '../assests/m1.jpg';
+import sinkImg from '../assests/s1.jpg';
+import washingImg from '../assests/w1.jpg';
+import defaultImg from '../assests/dd1.jpg';
 
-// --- 1. RELIABLE CATEGORY IMAGES ---
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+const CLOUDINARY_BASE_URL = "https://res.cloudinary.com/dcljdkqer/image/upload/";
+
 const categoryImages = {
-  "Refrigerators": "https://images.unsplash.com/photo-1571175443880-49e1d58b95da?q=80&w=800&auto=format&fit=crop",
-  "Hobs": "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=800&auto=format&fit=crop", 
-  "Chimneys": "https://images.unsplash.com/photo-1615873968403-89e068629265?q=80&w=800&auto=format&fit=crop", 
-  "Ovens": "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?q=80&w=800&auto=format&fit=crop", 
-  "Dishwashers": "https://images.unsplash.com/photo-1581622558663-b2e33377dfb2?q=80&w=800&auto=format&fit=crop", 
-  "Microwaves": "https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=800&auto=format&fit=crop",
-  "Sinks": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=800&auto=format&fit=crop",
-  "Washing Machines": "https://images.unsplash.com/photo-1626806749707-e44c82eed727?q=80&w=800&auto=format&fit=crop",
-  "default": "https://images.unsplash.com/photo-1556910103-1c02745a30bf?q=80&w=800&auto=format&fit=crop"
+  "Refrigerators": refrigeratorImg,
+  "Hobs": hobImg, 
+  "Chimneys": chimneyImg, 
+  "Ovens": ovenImg, 
+  "Dishwashers": dishwasherImg, 
+  "Microwaves": microwaveImg,
+  "Sinks": sinkImg,
+  "Washing Machines": washingImg,
+  "default": defaultImg
 };
 
-// --- HELPER: STANDARD SPECIFICATION SCHEMA ---
 const COMPARISON_SCHEMA = [
     {
-        section: "General Information",
+        section: "Key Information",
         fields: [
             { label: "Brand", key: "brand" },
             { label: "Model Name", key: "name" }, 
-            { label: "Type", key: "type" }, 
-            { label: "Finish / Color", key: "color" }, 
+            { label: "Appliance Type", key: "type" }, 
+            { label: "Color / Finish", key: "color" }, 
         ]
     },
     {
-        section: "Technical Specifications",
+        section: "Specifications",
         fields: [
-            { label: "Capacity / Size", key: "capacity" },
+            { label: "Capacity", key: "capacity" },
             { label: "Material", key: "material" },
-            { label: "Control Type", key: "controlType" }, 
-            { label: "Power / Suction", key: "power" }, 
+            { label: "Control System", key: "controlType" }, 
+            { label: "Power Output", key: "power" }, 
             { label: "Noise Level", key: "noiseLevel" },
             { label: "Energy Rating", key: "energyRating" },
         ]
     },
     {
-        section: "Features & Warranty",
+        section: "Features & Support",
         fields: [
-            { label: "Auto Clean / Defrost", key: "autoFeature" },
-            { label: "Smart Connectivity", key: "connectivity" }, 
-            { label: "Product Warranty", key: "warrantyProduct" },
+            { label: "Special Features", key: "autoFeature" },
+            { label: "Connectivity", key: "connectivity" }, 
+            { label: "General Warranty", key: "warrantyProduct" },
             { label: "Motor Warranty", key: "warrantyMotor" },
         ]
     }
 ];
 
-// --- HELPER: CATEGORY CLEANER ---
 const normalizeCategory = (rawCat) => {
     if (!rawCat) return "Others";
     const lower = rawCat.toLowerCase().trim();
     const mapping = {
-        "hob": "Hobs", "hobs": "Hobs", "gas stove": "Hobs",
+        "hob": "Hobs", "hobs": "Hobs", "gas stove": "Hobs", "cooktop": "Hobs",
         "oven": "Ovens", "ovens": "Ovens", "microwave": "Microwaves",
         "refrigerator": "Refrigerators", "refrigerators": "Refrigerators", "fridge": "Refrigerators",
         "chimney": "Chimneys", "chimneys": "Chimneys", "hood": "Chimneys",
         "sink": "Sinks", "sinks": "Sinks",
         "dishwasher": "Dishwashers", "dishwashers": "Dishwashers",
+        "washing machine": "Washing Machines", "washing": "Washing Machines"
     };
     return mapping[lower] || (lower.charAt(0).toUpperCase() + lower.slice(1));
+};
+
+const getImageUrl = (imgData) => {
+    let img = imgData;
+    if (Array.isArray(img)) img = img.length > 0 ? img[0] : "";
+    if (!img) return null;
+    if (img.startsWith('http')) return img;
+    const cleanPath = typeof img === 'string' ? img.replace(/\\/g, '/') : '';
+    return `${CLOUDINARY_BASE_URL}${cleanPath}`; 
+};
+
+const SafeImage = ({ src, alt, className }) => {
+    const [error, setError] = useState(false);
+    const finalUrl = getImageUrl(src);
+
+    if (error || !finalUrl) {
+        return (
+            <div className={`bg-gray-50 border border-gray-200 flex flex-col items-center justify-center text-gray-400 rounded-lg ${className}`}>
+                <ImageOff className="w-6 h-6 mb-2 opacity-50" />
+                <span className="text-[10px] font-medium">No Image</span>
+            </div>
+        );
+    }
+    return <img src={finalUrl} alt={alt} className={className} onError={() => setError(true)} />;
 };
 
 export default function ComparisonBanner() {
@@ -78,25 +107,28 @@ export default function ComparisonBanner() {
   const [categories, setCategories] = useState([]); 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selection, setSelection] = useState([]); 
+  
+  // NAYA STATE: Scroll track karne ke liye
+  const [isScrolled, setIsScrolled] = useState(false);
 
-  // --- FETCH DATA ---
   useEffect(() => {
-    if (isOpen) fetchData();
-  }, [isOpen]);
+    if (isOpen && allProducts.length === 0) {
+      fetchData();
+    }
+  }, [isOpen, allProducts.length]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/products`);
+      const res = await fetch(`${BACKEND_URL}/api/products`);
       if (!res.ok) throw new Error("Failed to connect");
       const data = await res.json();
       
       if (!data || data.length === 0) throw new Error("No Data");
 
       setAllProducts(data);
-      const uniqueCats = [...new Set(data.map(item => normalizeCategory(item.category)))];
+      const uniqueCats = [...new Set(data.map(item => normalizeCategory(item.category)))].filter(Boolean);
       setCategories(uniqueCats);
-
     } catch (err) {
       console.error("Backend Error:", err);
       setAllProducts([]);
@@ -106,7 +138,6 @@ export default function ComparisonBanner() {
     }
   };
 
-  // --- HANDLERS ---
   const handleCategorySelect = (cleanCat) => {
     setSelectedCategory(cleanCat);
     setSelection([]); 
@@ -120,27 +151,31 @@ export default function ComparisonBanner() {
     } else {
         if (selection.length < 2) {
             setSelection([...selection, product]);
+        } else {
+            setSelection([selection[0], product]); // Replace second if trying to add a third
         }
     }
   };
 
+  const removeProduct = (productId) => {
+      setSelection(selection.filter(p => p._id !== productId));
+  };
+
   const startComparison = () => {
+      if (selection.length !== 2) return;
       setLoading(true);
       setTimeout(() => {
           setLoading(false);
           setStep(3);
-      }, 800); 
+          setIsScrolled(false); // Reset scroll state when entering step 3
+      }, 500); 
   };
 
   const reset = () => {
       setIsOpen(false);
       setTimeout(() => {
-          setStep(1); setSelection([]); setSelectedCategory(null);
+          setStep(1); setSelection([]); setSelectedCategory(null); setIsScrolled(false);
       }, 500);
-  };
-
-  const getProductsForCategory = () => {
-      return allProducts.filter(p => normalizeCategory(p.category) === selectedCategory);
   };
 
   const getValue = (product, key) => {
@@ -150,201 +185,236 @@ export default function ComparisonBanner() {
       return "N/A";
   };
 
-  // --- REFINED: SAFE IMAGE COMPONENT ---
-  const SafeImage = ({ src, alt, className }) => {
-    const [error, setError] = useState(false);
-    
-    // FIX: Extract single image if an array is passed
-    const imgUrl = Array.isArray(src) ? src[0] : src;
-
-    if (error || !imgUrl) {
-        return (
-            <div className={`bg-gray-100 flex flex-col items-center justify-center text-gray-300 rounded-lg ${className}`}>
-                <ImageOff className="w-8 h-8 mb-2" />
-                <span className="text-[10px] uppercase tracking-widest">No Image</span>
-            </div>
-        );
-    }
-
-    return (
-        <img 
-            src={imgUrl} 
-            alt={alt} 
-            className={className} 
-            onError={() => setError(true)} 
-        />
-    );
+  // NAYA FUNCTION: Scroll handle karne ke liye
+  const handleScroll = (e) => {
+      if (e.target.scrollTop > 80) {
+          setIsScrolled(true);
+      } else {
+          setIsScrolled(false);
+      }
   };
 
-  // --- RENDERERS ---
-
-  // STEP 1: CATEGORIES
+  // =================== STEP 1: CATEGORIES ===================
   const renderCategories = () => (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-        {categories.map((cat, i) => {
-            const bgImage = categoryImages[cat] || categoryImages["default"];
-            
-            return (
-                <motion.button
-                    key={cat}
-                    initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    onClick={() => handleCategorySelect(cat)}
-                    className="group relative aspect-[4/3] rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 bg-gray-900"
-                >
-                    <img 
-                        src={bgImage} 
-                        alt={cat}
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-30"
-                        onError={(e) => {e.target.src = categoryImages["default"]}} 
-                    />
-                    
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
-                    
-                    <div className="absolute bottom-0 left-0 p-8 text-left">
-                        <h3 className="text-white font-serif text-3xl tracking-wide mb-2 group-hover:text-amber-400 transition-colors">{cat}</h3>
-                        <div className="flex items-center gap-2 text-white/60 text-xs uppercase tracking-widest group-hover:text-white">
-                            <span>Explore Models</span> <ChevronRight className="w-4 h-4" />
+    <div className="max-w-[1200px] mx-auto pb-10">
+        <div className="text-center mb-12 pt-8">
+            <h2 className="text-3xl md:text-5xl font-serif text-gray-900 mb-4">What would you like to compare?</h2>
+            <p className="text-gray-500">Select an appliance category to begin the comparison process.</p>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            {categories.map((cat) => {
+                const bgImage = categoryImages[cat] || categoryImages["default"];
+                const count = allProducts.filter(p => normalizeCategory(p.category) === cat).length;
+                
+                return (
+                    <button
+                        key={cat}
+                        onClick={() => handleCategorySelect(cat)}
+                        className="group flex flex-col items-center bg-white border border-gray-200 rounded-2xl p-4 hover:border-gray-900 hover:shadow-lg transition-all duration-300"
+                    >
+                        <div className="w-full aspect-[4/3] rounded-xl overflow-hidden bg-gray-50 mb-4 relative">
+                            <img src={bgImage} alt={cat} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         </div>
-                    </div>
-                </motion.button>
-            )
-        })}
+                        <h3 className="text-gray-900 font-bold text-lg mb-1">{cat}</h3>
+                        <p className="text-gray-500 text-[11px] uppercase tracking-wider font-medium">{count} Products</p>
+                    </button>
+                )
+            })}
+        </div>
     </div>
   );
 
-  // STEP 2: PRODUCT SELECTION (REFINED UI)
+  // =================== STEP 2: PRODUCT SELECTION ===================
   const renderProductSelection = () => {
-    const products = getProductsForCategory();
+    const products = allProducts.filter(p => normalizeCategory(p.category) === selectedCategory);
 
     return (
-        <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-end mb-12 sticky top-0 z-20 bg-[#F5F5F7]/95 backdrop-blur-md py-6 border-b border-gray-200">
-                <div>
-                    <p className="text-gray-500 text-sm uppercase tracking-wider mb-1">Category</p>
-                    <h3 className="text-4xl font-serif text-amber-600 font-bold">{selectedCategory}</h3>
-                </div>
-                <div className="flex flex-col items-end gap-3 mt-4 md:mt-0">
-                    <span className="text-gray-900 text-sm font-bold bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">
-                        <span className="text-amber-600 text-lg mr-1">{selection.length}</span> / 2 Selected
-                    </span>
+        <div className="flex flex-col h-full bg-[#FAFAFA]">
+            {/* Top Explicit "Tray" (Super Clear for User) */}
+            <div className="bg-white border-b border-gray-200 py-6 px-6 md:px-12 sticky top-0 z-30 shadow-sm">
+                <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div>
+                        <h2 className="text-2xl md:text-3xl font-serif text-gray-900 mb-1">Select two {selectedCategory.toLowerCase()}</h2>
+                        <p className="text-sm text-gray-500">Click on the products below to add them to your comparison tray.</p>
+                    </div>
+
+                    {/* The Comparison Tray */}
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                        {/* Slot 1 */}
+                        <div className="flex-1 md:w-64 h-20 bg-gray-50 border border-gray-200 rounded-xl flex items-center p-3 relative">
+                            {selection[0] ? (
+                                <>
+                                    <SafeImage src={selection[0].image} className="w-14 h-14 object-contain mr-3 bg-white rounded-lg p-1 border border-gray-100" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold truncate">{selection[0].brand}</p>
+                                        <p className="text-xs font-semibold text-gray-900 truncate">{selection[0].name}</p>
+                                    </div>
+                                    <button onClick={() => removeProduct(selection[0]._id)} className="absolute -top-2 -right-2 bg-white border border-gray-200 text-gray-500 hover:text-red-500 rounded-full p-1 shadow-sm"><X className="w-3 h-3"/></button>
+                                </>
+                            ) : (
+                                <div className="w-full flex items-center justify-center text-gray-400 gap-2 text-xs font-medium border-2 border-dashed border-gray-200 h-full rounded-lg">
+                                    <Plus className="w-4 h-4" /> Add Product 1
+                                </div>
+                            )}
+                        </div>
+
+                        <span className="text-gray-300 font-bold hidden md:block">VS</span>
+
+                        {/* Slot 2 */}
+                        <div className="flex-1 md:w-64 h-20 bg-gray-50 border border-gray-200 rounded-xl flex items-center p-3 relative">
+                            {selection[1] ? (
+                                <>
+                                    <SafeImage src={selection[1].image} className="w-14 h-14 object-contain mr-3 bg-white rounded-lg p-1 border border-gray-100" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold truncate">{selection[1].brand}</p>
+                                        <p className="text-xs font-semibold text-gray-900 truncate">{selection[1].name}</p>
+                                    </div>
+                                    <button onClick={() => removeProduct(selection[1]._id)} className="absolute -top-2 -right-2 bg-white border border-gray-200 text-gray-500 hover:text-red-500 rounded-full p-1 shadow-sm"><X className="w-3 h-3"/></button>
+                                </>
+                            ) : (
+                                <div className="w-full flex items-center justify-center text-gray-400 gap-2 text-xs font-medium border-2 border-dashed border-gray-200 h-full rounded-lg">
+                                    <Plus className="w-4 h-4" /> Add Product 2
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Action Button */}
+                        <button 
+                            disabled={selection.length !== 2}
+                            onClick={startComparison}
+                            className={`hidden md:flex px-8 h-20 rounded-xl font-bold uppercase tracking-widest text-[11px] transition-all duration-300 items-center justify-center gap-2 ${
+                                selection.length === 2 
+                                ? "bg-gray-900 text-white hover:bg-amber-600 shadow-md" 
+                                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            }`}
+                        >
+                            Compare Details <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {/* Mobile Action Button */}
                     <button 
                         disabled={selection.length !== 2}
                         onClick={startComparison}
-                        className={`px-10 py-4 font-bold uppercase tracking-widest text-sm transition-all flex items-center gap-3 rounded-xl shadow-lg ${
+                        className={`md:hidden w-full py-4 mt-2 rounded-xl font-bold uppercase tracking-widest text-[11px] transition-all duration-300 flex items-center justify-center gap-2 ${
                             selection.length === 2 
-                            ? "bg-gray-900 text-white hover:bg-amber-600 hover:-translate-y-1" 
+                            ? "bg-gray-900 text-white hover:bg-amber-600 shadow-md" 
                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
                         }`}
                     >
-                        Start Comparison <ArrowRightLeft className="w-5 h-5" />
+                        Compare Details <ArrowRight className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
-            {products.length === 0 ? (
-                <div className="text-center text-gray-400 py-32">No products found in this category.</div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {products.map((product) => {
-                        const isSelected = selection.find(p => p._id === product._id);
-                        return (
-                            <motion.div 
-                                key={product._id}
-                                onClick={() => toggleProduct(product)}
-                                whileHover={{ y: -5 }}
-                                className={`relative p-5 cursor-pointer transition-all duration-300 rounded-2xl bg-white flex flex-col group h-full ${
-                                    isSelected 
-                                    ? "ring-2 ring-amber-500 shadow-xl shadow-amber-500/10 bg-amber-50/10" 
-                                    : "border border-gray-100 hover:border-amber-200 hover:shadow-xl"
-                                }`}
-                            >
-                                {/* Selection Checkbox Indicator */}
-                                <div className={`absolute top-4 right-4 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors z-10 ${
-                                    isSelected ? "bg-amber-500 border-amber-500 text-white shadow-md" : "border-gray-200 text-transparent group-hover:border-amber-300"
-                                }`}>
-                                    <CheckCircle2 className="w-5 h-5" />
-                                </div>
+            {/* Product Grid */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-12">
+                <div className="max-w-[1400px] mx-auto">
+                    {products.length === 0 ? (
+                        <div className="text-center text-gray-500 py-32 font-medium">No products found.</div>
+                    ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                            {products.map((product) => {
+                                const isSelected = selection.find(p => p._id === product._id);
+                                return (
+                                    <div 
+                                        key={product._id}
+                                        onClick={() => toggleProduct(product)}
+                                        className={`cursor-pointer bg-white rounded-xl p-4 flex flex-col transition-all duration-200 border-2 ${
+                                            isSelected ? "border-gray-900 shadow-lg relative" : "border-transparent border-gray-100 hover:border-gray-300 hover:shadow-md"
+                                        }`}
+                                    >
+                                        {/* Selection Indicator */}
+                                        {isSelected && (
+                                            <div className="absolute top-3 left-3 bg-gray-900 text-white w-6 h-6 rounded-full flex items-center justify-center z-10">
+                                                <Check className="w-3.5 h-3.5" />
+                                            </div>
+                                        )}
 
-                                {/* Beautiful Image Container */}
-                                <div className="h-48 w-full flex items-center justify-center mb-5 p-4 bg-[#F8F8FA] rounded-xl group-hover:bg-amber-50/50 transition-colors">
-                                    <SafeImage 
-                                        src={product.image} 
-                                        alt={product.name} 
-                                        className="h-full w-full object-contain mix-blend-multiply transform group-hover:scale-110 transition-transform duration-500" 
-                                    />
-                                </div>
-
-                                {/* Content */}
-                                <div className="flex flex-col flex-1">
-                                    <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1">{product.brand || "Brand"}</p>
-                                    <h4 className="text-gray-900 font-bold text-base mb-3 leading-snug line-clamp-2">{product.name}</h4>
-                                    
-                                    <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center">
-                                        <p className="text-gray-900 font-black text-lg">₹{product.price ? product.price.toLocaleString() : "N/A"}</p>
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-amber-600' : 'text-gray-400 group-hover:text-amber-600'}`}>
-                                            {isSelected ? "Selected" : "Compare"}
-                                        </span>
+                                        <div className="w-full aspect-square bg-gray-50 rounded-lg flex items-center justify-center mb-4 p-4">
+                                            <SafeImage src={product.image} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" />
+                                        </div>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{product.brand}</p>
+                                        <h4 className="text-gray-900 font-semibold text-sm leading-snug line-clamp-2 mb-3 flex-1">{product.name}</h4>
+                                        <p className="text-gray-900 font-bold">₹{product.price ? product.price.toLocaleString() : "N/A"}</p>
                                     </div>
-                                </div>
-                            </motion.div>
-                        )
-                    })}
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
   };
 
-  // STEP 3: COMPARISON TABLE
+  // =================== STEP 3: COMPARISON REPORT ===================
   const renderComparison = () => {
       const [p1, p2] = selection;
 
       return (
-          <div className="max-w-7xl mx-auto pb-20">
+          <div className="max-w-[1000px] mx-auto pb-20 pt-8 bg-white">
               
-              <div className="grid grid-cols-2 gap-4 md:gap-8 mb-10 sticky top-0 z-20 bg-[#F5F5F7]/95 backdrop-blur-md py-4 border-b border-gray-200">
-                <div className="text-center">
-                    <div className="h-32 mb-2 flex items-center justify-center">
+              {/* NAYA: Sticky Header with Scroll Tracking & Shrink Logic */}
+              <div className={`grid grid-cols-2 gap-4 md:gap-8 sticky top-0 z-40 bg-white border-b border-gray-200 shadow-[0_10px_20px_rgba(0,0,0,0.02)] transition-all duration-300 ${isScrolled ? 'py-2' : 'py-6'}`}>
+                
+                {/* Product 1 Header */}
+                <div className="flex flex-col items-center text-center px-2">
+                    <div className={`w-full max-w-[200px] flex items-center justify-center transition-all duration-300 ${isScrolled ? 'h-12 md:h-16 mb-1' : 'h-32 md:h-40 mb-4'}`}>
                         <SafeImage src={p1.image} alt={p1.name} className="h-full object-contain mix-blend-multiply" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-1">{p1.name}</h3>
-                    <p className="text-xl text-amber-700 font-light">₹{p1.price ? p1.price.toLocaleString() : "N/A"}</p>
+                    {!isScrolled && <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-1 transition-all">{p1.brand}</p>}
+                    <h3 className={`font-bold text-gray-900 transition-all duration-300 ${isScrolled ? 'text-xs md:text-sm line-clamp-1 h-auto mb-1' : 'text-sm md:text-base line-clamp-2 mb-2 h-10 md:h-12'}`}>{p1.name}</h3>
+                    <p className={`text-gray-900 font-bold transition-all duration-300 ${isScrolled ? 'text-sm mb-1' : 'text-xl mb-4'}`}>₹{p1.price ? p1.price.toLocaleString() : "N/A"}</p>
                 </div>
-                <div className="text-center relative">
-                    <div className="absolute top-1/2 -left-4 md:-left-8 -translate-y-1/2 w-8 h-8 md:w-16 md:h-16 bg-white rounded-full flex items-center justify-center text-amber-600 font-black italic text-xs md:text-xl shadow-lg border border-gray-200 z-30">VS</div>
-                    <div className="h-32 mb-2 flex items-center justify-center">
+
+                {/* Product 2 Header */}
+                <div className="flex flex-col items-center text-center px-2 relative border-l border-gray-100">
+                    <div className={`absolute bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 font-bold z-10 shadow-sm transition-all duration-300 ${isScrolled ? 'top-1/2 -translate-y-1/2 -left-3 md:-left-4 w-6 h-6 text-[8px]' : 'top-1/3 -left-4 md:-left-5 w-8 h-8 md:w-10 md:h-10 text-[10px] md:text-xs'}`}>
+                        VS
+                    </div>
+                    <div className={`w-full max-w-[200px] flex items-center justify-center transition-all duration-300 ${isScrolled ? 'h-12 md:h-16 mb-1' : 'h-32 md:h-40 mb-4'}`}>
                         <SafeImage src={p2.image} alt={p2.name} className="h-full object-contain mix-blend-multiply" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-1">{p2.name}</h3>
-                    <p className="text-xl text-amber-700 font-light">₹{p2.price ? p2.price.toLocaleString() : "N/A"}</p>
+                    {!isScrolled && <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-1 transition-all">{p2.brand}</p>}
+                    <h3 className={`font-bold text-gray-900 transition-all duration-300 ${isScrolled ? 'text-xs md:text-sm line-clamp-1 h-auto mb-1' : 'text-sm md:text-base line-clamp-2 mb-2 h-10 md:h-12'}`}>{p2.name}</h3>
+                    <p className={`text-gray-900 font-bold transition-all duration-300 ${isScrolled ? 'text-sm mb-1' : 'text-xl mb-4'}`}>₹{p2.price ? p2.price.toLocaleString() : "N/A"}</p>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* Data Table (Spreadsheet Style) */}
+              <div className="w-full">
                  {COMPARISON_SCHEMA.map((section, idx) => (
-                    <div key={idx} className="border-b border-gray-100 last:border-0">
-                        <div className="bg-gray-100 px-6 py-3 border-y border-gray-200">
-                            <h4 className="font-bold text-gray-800 uppercase tracking-widest text-xs flex items-center gap-2">
-                                <Info className="w-4 h-4" /> {section.section}
-                            </h4>
+                    <div key={idx} className="mb-8">
+                        {/* Section Title */}
+                        <div className="bg-gray-50 px-4 py-3 border-y border-gray-200 mb-2">
+                            <h4 className="font-bold text-gray-900 text-sm">{section.section}</h4>
                         </div>
-                        <div className="divide-y divide-gray-100">
+                        
+                        {/* Rows */}
+                        <div className="flex flex-col">
                             {section.fields.map((field, fIdx) => {
                                 const val1 = getValue(p1, field.key);
                                 const val2 = getValue(p2, field.key);
                                 const isDifferent = val1 !== val2 && val1 !== "N/A" && val2 !== "N/A";
 
                                 return (
-                                    <div key={fIdx} className={`grid grid-cols-3 text-sm group ${isDifferent ? "bg-amber-50/40" : "hover:bg-gray-50"}`}>
-                                        <div className="p-4 md:p-6 text-gray-500 font-semibold border-r border-gray-100 flex items-center">
-                                            {field.label}
+                                    <div key={fIdx} className={`grid grid-cols-2 relative border-b border-gray-100 py-4 ${isDifferent ? "bg-amber-50/40" : ""}`}>
+                                        <div className="col-span-2 text-center md:text-left md:absolute md:left-4 md:top-1/2 md:-translate-y-1/2 w-full md:w-48 pb-2 md:pb-0 z-10">
+                                            <span className="text-[11px] uppercase tracking-wider font-bold text-gray-500 bg-white/80 md:bg-transparent px-2 md:px-0">
+                                                {field.label}
+                                            </span>
                                         </div>
-                                        <div className="p-4 md:p-6 text-gray-900 border-r border-gray-100 flex items-center">
-                                            {val1 === "N/A" ? <span className="text-gray-300 italic">N/A</span> : val1}
+                                        <div className="text-center px-4 md:pl-56 border-r border-gray-100">
+                                            <span className={`text-sm ${isDifferent ? 'text-gray-900 font-semibold' : 'text-gray-700'}`}>
+                                                {val1 === "N/A" ? <span className="text-gray-300 italic">-</span> : val1}
+                                            </span>
                                         </div>
-                                        <div className="p-4 md:p-6 text-gray-900 flex items-center">
-                                            {val2 === "N/A" ? <span className="text-gray-300 italic">N/A</span> : val2}
+                                        <div className="text-center px-4 md:pr-12">
+                                            <span className={`text-sm ${isDifferent ? 'text-gray-900 font-semibold' : 'text-gray-700'}`}>
+                                                {val2 === "N/A" ? <span className="text-gray-300 italic">-</span> : val2}
+                                            </span>
                                         </div>
                                     </div>
                                 );
@@ -354,95 +424,113 @@ export default function ComparisonBanner() {
                  ))}
               </div>
 
-              <div className="mt-12 text-center">
-                 <p className="text-gray-400 text-xs uppercase tracking-widest mb-4">* Specifications are based on available data.</p>
-                 <button className="bg-gray-900 text-white px-8 py-3 rounded-full font-bold uppercase tracking-widest hover:bg-amber-600 transition-colors shadow-lg">
-                    Request Detailed Quote
-                 </button>
-              </div>
           </div>
       );
   };
 
   return (
     <>
-      {/* TRIGGER BANNER */}
-      <section className="w-full bg-white border-y border-gray-200 py-24 relative overflow-hidden group">
-         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80')] bg-cover bg-center opacity-80 " />
-         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-transparent" />
-         
-         <div className="container mx-auto px-6 relative z-10 flex flex-col md:flex-row items-center justify-between gap-16">
-             <div className="max-w-2xl">
-                 <div className="flex items-center gap-3 mb-6">
-                     <span className="h-px w-12 bg-amber-600" />
-                     <span className="text-amber-600 text-sm font-bold uppercase tracking-[0.3em]">Decision Studio</span>
+      {/* TRIGGER BANNER (Main Page View) */}
+      <section className="w-full bg-white py-20 md:py-28 relative font-sans border-y border-gray-200 overflow-hidden">
+         <div className="max-w-[1200px] mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-12 bg-gray-50 p-10 md:p-16 rounded-[2rem] relative z-10">
+             <div className="max-w-xl text-center md:text-left z-20">
+                 <div className="inline-flex items-center gap-2 mb-6 bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm">
+                     <Scale className="w-4 h-4 text-amber-600" />
+                     <span className="text-gray-900 text-[10px] font-bold uppercase tracking-[0.2em]">Product Compare</span>
                  </div>
-                 <h2 className="text-5xl md:text-7xl font-serif text-gray-900 leading-none mb-8">
-                     Compare.<br/> Decide <span className="text-amber-600 italic">Own.</span>
+                 <h2 className="text-4xl md:text-5xl font-serif text-gray-900 leading-tight mb-6">
+                     Stuck between two models?
                  </h2>
-                 <p className="text-gray-600 text-xl font-light leading-relaxed mb-10 max-w-lg">
-                     Stuck between two masterpieces? Use our studio to compare them side-by-side and make the right choice.
+                 <p className="text-gray-500 text-sm md:text-base leading-relaxed mb-8">
+                     Use our side-by-side comparison tool to evaluate specifications, dimensions, and features clearly before making your decision.
                  </p>
                  <button 
                     onClick={() => setIsOpen(true)}
-                    className="bg-gray-900 text-white px-10 py-5 font-bold uppercase tracking-widest text-sm hover:bg-amber-600 hover:shadow-2xl transition-all duration-300 flex items-center gap-4 rounded-xl"
+                    className="bg-gray-900 text-white px-8 py-4 rounded-full font-bold text-xs hover:bg-amber-600 transition-colors shadow-lg flex items-center gap-3 mx-auto md:mx-0"
                  >
-                    Open Studio <ArrowRightLeft className="w-5 h-5" />
+                    Compare Products <ArrowRight className="w-4 h-4" />
                  </button>
              </div>
-             <div className="hidden md:flex relative w-1/2 justify-end">
-                 <Scale className="w-64 h-64 text-gray-200 drop-shadow-lg" strokeWidth={1} />
+             
+             {/* NAYA: Dynamic Visual Graphics Images replacing abstract ones */}
+             <div className="flex flex-row items-center justify-center gap-2 md:gap-6 relative w-full max-w-sm z-10 mt-10 md:mt-0">
+                 {/* Product 1 */}
+                 <div className="w-32 h-40 md:w-44 md:h-56 bg-white border-4 border-white shadow-xl rounded-2xl flex flex-col items-center justify-center overflow-hidden transform -rotate-6 hover:rotate-0 hover:scale-105 transition-all duration-300 z-10 relative">
+                    {/* Yahan tum apne wow_shop ke Cloudinary images ka link direct daal sakte ho test karne ke liye */}
+                    <img src={categoryImages["Refrigerators"]} alt="Option A" className="w-full h-full object-cover bg-gray-100" />
+                    <div className="absolute bottom-0 w-full bg-gradient-to-t from-black/60 to-transparent p-2 md:p-3 pt-8">
+                       <p className="text-white text-[8px] md:text-[10px] font-bold tracking-wider">OPTION A</p>
+                    </div>
+                 </div>
+                 
+                 {/* VS Badge */}
+                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold text-xs md:text-sm z-30 shadow-lg border-2 md:border-4 border-gray-50">
+                     VS
+                 </div>
+                 
+                 {/* Product 2 */}
+                 <div className="w-32 h-40 md:w-44 md:h-56 bg-white border-4 border-white shadow-xl rounded-2xl flex flex-col items-center justify-center overflow-hidden transform rotate-6 hover:rotate-0 hover:scale-105 transition-all duration-300 z-20 mt-8 md:mt-16 relative">
+                    <img src={categoryImages["Chimneys"]} alt="Option B" className="w-full h-full object-cover bg-gray-100" />
+                    <div className="absolute bottom-0 w-full bg-gradient-to-t from-black/60 to-transparent p-2 md:p-3 pt-8">
+                       <p className="text-white text-[8px] md:text-[10px] font-bold tracking-wider">OPTION B</p>
+                    </div>
+                 </div>
              </div>
          </div>
       </section>
       
-      {/* FULL SCREEN MODAL */}
+      {/* FULL SCREEN LIGHT MODAL */}
       <AnimatePresence>
         {isOpen && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.4, ease: "easeInOut" }}
-            className="fixed inset-0 z-[100] bg-[#F5F5F7] flex flex-col"
+            initial={{ opacity: 0, y: 50 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[100] bg-white flex flex-col font-sans overflow-hidden"
           >
-            {/* Header */}
-            <div className="h-24 border-b border-gray-200 flex items-center justify-between px-10 bg-white shadow-sm shrink-0">
-                <div className="flex items-center gap-6">
-                    <span className="text-gray-900 font-black text-2xl tracking-tighter">WOW<span className="text-amber-600">STUDIO</span></span>
-                    <div className="h-8 w-px bg-gray-200" />
-                    <span className="text-gray-400 text-sm uppercase tracking-widest font-medium">
-                        {step === 1 ? "Select Category" : step === 2 ? "Select Products" : "Comparison View"}
-                    </span>
+            {/* Minimal Header */}
+            <div className="h-16 md:h-20 border-b border-gray-200 flex items-center justify-between px-4 md:px-8 bg-white shrink-0 z-50">
+                <div className="flex items-center gap-4">
+                    {step > 1 && (
+                        <button onClick={() => setStep(step - 1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+                            <ArrowLeft className="w-5 h-5" />
+                        </button>
+                    )}
+                    <span className="text-gray-900 font-bold text-lg md:text-xl">Compare</span>
                 </div>
-                <button onClick={reset} className="w-12 h-12 flex items-center justify-center bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-full transition-all transform hover:rotate-90">
+                
+                {/* Progress Indicator */}
+                <div className="hidden md:flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    <span className={step >= 1 ? "text-gray-900" : ""}>1. Category</span>
+                    <ChevronRight className="w-3 h-3" />
+                    <span className={step >= 2 ? "text-gray-900" : ""}>2. Products</span>
+                    <ChevronRight className="w-3 h-3" />
+                    <span className={step === 3 ? "text-gray-900" : ""}>3. Results</span>
+                </div>
+
+                <button onClick={reset} className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-500 rounded-full transition-colors">
                     <X className="w-6 h-6" />
                 </button>
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-10 md:p-16 relative">
+            {/* Scrollable Body - NAYA: yahan onScroll={handleScroll} add kiya hai */}
+            <div className="flex-1 overflow-y-auto hide-scrollbar relative" onScroll={handleScroll}>
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center h-[60vh]">
-                        <Loader2 className="w-16 h-16 text-amber-600 animate-spin mb-6" />
-                        <p className="text-gray-900 text-lg font-medium tracking-wider">Loading Data...</p>
+                    <div className="flex flex-col items-center justify-center h-full">
+                        <Loader2 className="w-10 h-10 text-gray-900 animate-spin mb-4" />
+                        <p className="text-gray-500 text-sm font-medium">Preparing comparison...</p>
                     </div>
                 ) : (
-                    <>
-                        {step === 1 && renderCategories()}
-                        {step === 2 && renderProductSelection()}
-                        {step === 3 && renderComparison()}
-                    </>
+                    <AnimatePresence mode="wait">
+                        <motion.div key={step} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                            {step === 1 && renderCategories()}
+                            {step === 2 && renderProductSelection()}
+                            {step === 3 && renderComparison()}
+                        </motion.div>
+                    </AnimatePresence>
                 )}
             </div>
-
-            {/* Footer Navigation */}
-            {step > 1 && !loading && (
-                <div className="h-20 border-t border-gray-200 bg-white flex items-center px-10 shrink-0">
-                    <button onClick={() => setStep(step - 1)} className="text-gray-500 hover:text-gray-900 flex items-center gap-3 text-sm font-bold uppercase tracking-widest transition-colors group">
-                        <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> Back
-                    </button>
-                </div>
-            )}
-
           </motion.div>
         )}
       </AnimatePresence>

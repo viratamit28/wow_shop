@@ -3,94 +3,94 @@ import axios from "axios";
 
 export const AuthContext = createContext();
 
+// 👇 Backend port aur base API URL
+const BASE_URL = "http://localhost:5000/api";
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
   
-  // 👇 Cart State (Items array) and Count
   const [cart, setCart] = useState([]); 
   const [cartCount, setCartCount] = useState(0);
 
-  // Function to refresh user and cart
+  // --- CORE LOADER: USER & CART ---
   const loadUserAndCart = async (currentToken) => {
-    if (currentToken) {
-      try {
-        // 1. Load User
-        const userRes = await axios.get("http://localhost:5000/api/user/profile", {
-          headers: { "auth-token": currentToken }
-        });
-        setUser(userRes.data);
-
-        // 2. Load Cart Data from DB
-        const cartRes = await axios.get("http://localhost:5000/api/cart", {
-          headers: { "auth-token": currentToken }
-        });
-        
-        // Data set karo
-        setCart(cartRes.data);
-        
-        // Total quantity calculate karo
-        const count = cartRes.data.reduce((sum, item) => sum + item.quantity, 0);
-        setCartCount(count);
-
-      } catch (error) {
-        console.error("Auth Error", error);
-        // Agar token expire ho gaya, to logout karo
-        if(error.response && error.response.status === 401){
-            logout();
-        }
-      }
+    if (!currentToken) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    try {
+      // 1. Fetch User Profile
+      // (Bhai check kar lena ki tere backend index.js me auth routes '/api/user' pe mounted ho)
+      const userRes = await axios.get(`${BASE_URL}/user/profile`, {
+        headers: { "auth-token": currentToken }
+      });
+      setUser(userRes.data);
+
+      // 2. Fetch Cart Data (Populated array with product details)
+      const cartRes = await axios.get(`${BASE_URL}/cart`, {
+        headers: { "auth-token": currentToken }
+      });
+      
+      const cartData = Array.isArray(cartRes.data) ? cartRes.data : [];
+      setCart(cartData);
+      
+      // Calculate Total Quantity
+      const count = cartData.reduce((sum, item) => sum + (item.quantity || 1), 0);
+      setCartCount(count);
+
+    } catch (error) {
+      console.error("Session Error:", error.message);
+      // Auto-logout if token is invalid or expired
+      if(error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 400){
+          logout();
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadUserAndCart(token);
   }, [token]);
 
-  // 👇 ADD TO CART FUNCTION (Global Helper)
-  const addToCart = async (product, quantity = 1) => {
-      // Logic for adding (Backend Call)
-      // Aap chaho toh ise implement kar sakte ho ya existing logic use karo
-      refreshCart();
-  };
-
-  // 👇 REMOVE FROM CART FUNCTION (The Fix)
-  const removeFromCart = async (productId) => {
-    // 1. Pehle Screen se hata do (Optimistic Update)
-    const updatedCart = cart.filter(item => {
-         const itemId = item.productId?._id || item.productId || item._id;
-         return itemId !== productId;
-    });
-    setCart(updatedCart);
-    setCartCount(updatedCart.reduce((sum, item) => sum + item.quantity, 0));
-
-    // 2. Database se Delete call karo
-    if (token) {
-      try {
-        await axios.delete(`http://localhost:5000/api/cart/delete/${productId}`, {
-          headers: { "auth-token": token }
-        });
-        console.log("Deleted from DB");
-      } catch (error) {
-        console.error("Delete Error", error);
-        refreshCart(); // Agar fail hua to wapis load karlo
-      }
-    }
-  };
-
+  // --- ACTIONS ---
   const refreshCart = () => {
     if (token) loadUserAndCart(token);
   };
 
-  const login = (token, userData) => {
-    localStorage.setItem("token", token);
-    setToken(token);
-    setUser(userData);
-    // loadUserAndCart effect se apne aap call ho jayega
+  const removeFromCart = async (productId) => {
+    // 1. UI Optimistic Update (Immediate Response 🚀)
+    const updatedCart = cart.filter(item => {
+        const itemId = item.productId?._id || item.productId || item._id;
+        return itemId !== productId;
+    });
+    setCart(updatedCart);
+    setCartCount(updatedCart.reduce((sum, item) => sum + (item.quantity || 1), 0));
+
+    // 2. Sync with Backend
+    if (token) {
+      try {
+        await axios.delete(`${BASE_URL}/cart/delete/${productId}`, {
+          headers: { "auth-token": token }
+        });
+      } catch (error) {
+        console.error("Delete Sync Error:", error.message);
+        refreshCart(); // Rollback agar backend se API fail ho jaye
+      }
+    }
   };
 
+  // Jab user login karega
+  const login = (newToken, userData) => {
+    localStorage.setItem("token", newToken);
+    setToken(newToken);
+    // user set karne ki zaroorat nahi, useEffect khud loadUserAndCart trigger kar dega
+  };
+
+  // Jab user logout karega
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
@@ -106,11 +106,10 @@ export const AuthProvider = ({ children }) => {
         login, 
         logout, 
         loading, 
-        cart,      // 👈 Ab Cart items bhi context me hain
+        cart, 
         cartCount, 
         refreshCart,
-        removeFromCart, // 👈 New Function exposed
-        addToCart
+        removeFromCart
     }}>
       {children}
     </AuthContext.Provider>

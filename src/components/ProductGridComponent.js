@@ -1,168 +1,162 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useContext } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import axios from "axios";
+import { AuthContext } from "../context/AuthContext";
+import { Loader2, Package, SearchX, SlidersHorizontal, ArrowRight, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+// === ASSETS IMPORT ===
+import imgOven from '../assests/oven.jpg';
+import imgChimney from '../assests/chemni.jpg';
+import imgFridge from '../assests/refrigarator.jpg';
+import imgCountertop from '../assests/countertop.jpg';
+import imgLaundry from '../assests/laundry.jpg';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+const CLOUDINARY_BASE_URL = "https://res.cloudinary.com/dcljdkqer/image/upload/";
+
+// === DYNAMIC HEADER IMAGE HELPER ===
+const getHeaderImage = (title) => {
+  if (!title) return "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=2000"; 
+  const t = title.toLowerCase();
+  if (t.includes('oven')) return imgOven;
+  if (t.includes('chimney') || t.includes('hood') || t.includes('hobs')) return imgChimney;
+  if (t.includes('refrigerator') || t.includes('fridge')) return imgFridge;
+  if (t.includes('countertop') || t.includes('small') || t.includes('appliances')) return imgCountertop;
+  if (t.includes('washing') || t.includes('laundry')) return imgLaundry;
+  return "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=2000"; 
+};
 
 export default function ProductGridComponent() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { token, refreshCart } = useContext(AuthContext);
   
-  // Extended Product List with different names for each product
-  const productNames = [
-    "KB5A- 34L Built-in Microwave with Grill & Convection",
-    "Smart Inverter Microwave Oven 28L with Auto Cook",
-    "Compact Solo Microwave 20L for Small Kitchens",
-    "Grill Microwave Oven 30L with Ceramic Enamel",
-    "Convection Microwave 42L with Steam Clean",
-    "Digital Microwave 25L with Child Lock Safety",
-    "Stainless Steel Microwave 32L with 100+ Auto Programs",
-    "Over-the-Range Microwave 1.7 cu.ft with Exhaust",
-    "Countertop Microwave 1.2 cu.ft with Sensor Cooking",
-    "Built-in Microwave 27L with Eco Mode",
-    "Commercial Microwave 1.8 cu.ft for Restaurants",
-    "Mini Microwave 18L for Dorms and Offices",
-    "Smart Microwave with WiFi and Voice Control",
-    "Microwave Oven 35L with Turntable On/Off",
-    "Retro Style Microwave 24L in Vintage Colors",
-    "Professional Microwave 40L with Dehydration",
-    "Microwave Convection Oven Combo 38L",
-    "Compact Microwave 19L with Quick Start",
-    "Family Size Microwave 45L with Dual Racks",
-    "Energy Efficient Microwave 23L with Eco Mode",
-    "Microwave with Air Fryer 34L Combo",
-    "Digital Inverter Microwave 31L with Precision Cooking",
-    "Stainless Steel Built-in Microwave 28L",
-    "Smart Microwave 36L with Recipe Guide"
-  ];
+  // URL Filters
+  const categoryFilter = searchParams.get('category');
+  const typeFilter = searchParams.get('type');
+  const searchFilter = searchParams.get('search');
+  const brandFilter = searchParams.get('brand'); 
 
-  const products = Array.from({ length: 24 }).map((_, i) => ({
-    id: i + 1,
-    title: productNames[i],
-    brand: ["Elica", "Bosch", "Faber", "Glen", "Crompton", "Electrolux"][i % 6],
-    price: 5000 + i * 1200,
-    oldPrice: 10000 + i * 1400,
-    badge: i % 2 === 0 ? "OFFER" : "",
-    image: `https://images.unsplash.com/photo-1713514022453-4adc636025a4?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTk4fHxraXRjaGVuJTIwYXBwbGlhbmNlc3xlbnwwfHwwfHx8MA%3D%3D${i}`,
-    features: [
-      `Capacity: ${30 + i}L`,
-      `Power: ${800 + i * 50}W`,
-      i % 3 === 0 ? "Grill Function" : "Convection",
-      i % 2 === 0 ? "Auto Cook" : "Manual Control",
-      i % 4 === 0 ? "Child Lock" : "Quick Start"
-    ]
-  }));
-
-  // Brands full list with counts
-  const brandList = [
-    { name: "Bosch", count: 27 },
-    { name: "Carysil", count: 25 },
-    { name: "Siemens", count: 29 },
-    { name: "Kaff", count: 16 },
-    { name: "Elica", count: 126 },
-    { name: "Faber", count: 97 },
-    { name: "Hafele", count: 26 },
-    { name: "Hindware", count: 56 },
-    { name: "Blaupunkt", count: 32 },
-    { name: "Electrolux", count: 32 },
-  ];
-
-  // Installation types with counts
-  const installationTypes = [
-    { name: "Ceiling Mounted", count: 9 },
-    { name: "Down Draft", count: 1 },
-    { name: "Island", count: 67 },
-    { name: "Straight Line", count: 17 },
-    { name: "Under Cabinet Wall Mounted", count: 7 },
-    { name: "Wall Mounted", count: 619 },
-  ];
-
-  const [showMoreBrands, setShowMoreBrands] = useState(false);
-  const visibleBrands = showMoreBrands ? brandList : brandList.slice(0, 8);
-
-  const [selectedBrands, setSelectedBrands] = useState(new Set());
-  const [selectedInstallations, setSelectedInstallations] = useState(new Set());
+  // States
+  const [dbProducts, setDbProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedBrands, setSelectedBrands] = useState(new Set(brandFilter ? [brandFilter] : []));
   const [sort, setSort] = useState("best");
   const [page, setPage] = useState(1);
-  const perPage = 9;
-
-  // Compare functionality states
+  const perPage = 12; 
+  const [dynamicBrands, setDynamicBrands] = useState([]);
+  const [showMoreBrands, setShowMoreBrands] = useState(false);
   const [compareProducts, setCompareProducts] = useState(new Set());
   const [showCompareSidebar, setShowCompareSidebar] = useState(false);
-
-  // Price Range
   const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(60000);
+  const [maxPrice, setMaxPrice] = useState(500000); 
 
-  // Cart functionality
-  const [cart, setCart] = useState([]);
+  // 1. FETCH DATA
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const url = new URL(`${BACKEND_URL}/api/products`);
+        if (categoryFilter) url.searchParams.append("category", categoryFilter);
+        if (typeFilter) url.searchParams.append("type", typeFilter);
+        if (searchFilter) url.searchParams.append("search", searchFilter);
 
-  // Load cart from localStorage on component mount
-  React.useEffect(() => {
-    const savedCart = localStorage.getItem('shoppingCart');
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
+        const res = await axios.get(url.toString());
+        const fetchedProducts = res.data;
+        setDbProducts(fetchedProducts);
+
+        if (fetchedProducts.length > 0) {
+            const brandsObj = {};
+            fetchedProducts.forEach(p => {
+                if (p.brand) {
+                    brandsObj[p.brand] = (brandsObj[p.brand] || 0) + 1;
+                }
+            });
+            const brandsArray = Object.entries(brandsObj).map(([name, count]) => ({ name, count }));
+            brandsArray.sort((a, b) => b.count - a.count);
+            setDynamicBrands(brandsArray);
+        }
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, [categoryFilter, typeFilter, searchFilter]);
+
+  // 2. IMAGE URL HELPER
+  const getImageUrl = (imgData) => {
+    let img = imgData;
+    if (Array.isArray(img)) img = img.length > 0 ? img[0] : "";
+    if (!img) return "https://placehold.co/300?text=No+Img";
+    if (img.startsWith('http')) return img;
+    const cleanPath = typeof img === 'string' ? img.replace(/\\/g, '/') : '';
+    return `${CLOUDINARY_BASE_URL}${cleanPath}`; 
+  };
+
+  // 3. FILTERING & SORTING LOGIC
+  function filteredProducts() {
+    let arr = dbProducts.filter((p) => (p.price || 0) >= minPrice && (p.price || 0) <= maxPrice);
+    if (selectedBrands.size > 0) {
+      arr = arr.filter((p) => p.brand && selectedBrands.has(p.brand));
     }
-  }, []);
+    if (sort === "price-asc") arr = arr.slice().sort((a, b) => (a.price || 0) - (b.price || 0));
+    if (sort === "price-desc") arr = arr.slice().sort((a, b) => (b.price || 0) - (a.price || 0));
+    return arr;
+  }
 
-  // Save cart to localStorage whenever cart changes
-  React.useEffect(() => {
-    localStorage.setItem('shoppingCart', JSON.stringify(cart));
-  }, [cart]);
+  const resultList = filteredProducts();
+  const paginated = resultList.slice((page - 1) * perPage, page * perPage);
+  const totalPages = Math.ceil(resultList.length / perPage);
 
-  function toggleBrand(brandName) {
+  const toggleBrand = (brandName) => {
     const next = new Set(selectedBrands);
     if (next.has(brandName)) next.delete(brandName);
     else next.add(brandName);
     setSelectedBrands(next);
-  }
+    setPage(1); 
+  };
 
-  function toggleInstallation(installationName) {
-    const next = new Set(selectedInstallations);
-    if (next.has(installationName)) next.delete(installationName);
-    else next.add(installationName);
-    setSelectedInstallations(next);
-  }
-
-  function removeBrand(brandName) {
-    const next = new Set(selectedBrands);
-    next.delete(brandName);
-    setSelectedBrands(next);
-  }
-
-  function removeAllFilters() {
+  const removeAllFilters = () => {
     setSelectedBrands(new Set());
-    setSelectedInstallations(new Set());
     setMinPrice(0);
-    setMaxPrice(60000);
-  }
+    setMaxPrice(500000);
+    setPage(1);
+  };
 
-  // Compare functions
+  // 4. ACTIONS (Buy, Compare)
+  const handleBuyNow = async (product) => {
+    if (!token) return alert("Please Login to add items to your portfolio!");
+    try {
+      await axios.post(`${BACKEND_URL}/api/cart/add`, 
+        { productId: product._id, quantity: 1 }, 
+        { headers: { 'auth-token': token } }
+      );
+      refreshCart(); 
+      navigate('/cart'); 
+    } catch (err) {
+      alert("Could not add to portfolio. Try again.");
+    }
+  };
+
   const toggleCompare = (productId) => {
     const next = new Set(compareProducts);
-    if (next.has(productId)) {
-      next.delete(productId);
-    } else {
-      if (next.size < 4) { // Limit to 4 products for comparison
-        next.add(productId);
-      } else {
-        alert("You can compare up to 4 products only");
-        return;
-      }
+    if (next.has(productId)) next.delete(productId);
+    else {
+      if (next.size < 4) next.add(productId);
+      else return alert("You can compare up to 4 products only.");
     }
     setCompareProducts(next);
-    
-    // Auto-show sidebar when adding first product to compare
-    if (next.size > 0 && !showCompareSidebar) {
-      setShowCompareSidebar(true);
-    }
+    if (next.size > 0 && !showCompareSidebar) setShowCompareSidebar(true);
   };
 
   const removeFromCompare = (productId) => {
     const next = new Set(compareProducts);
     next.delete(productId);
     setCompareProducts(next);
-    
-    // Hide sidebar if no products left to compare
-    if (next.size === 0) {
-      setShowCompareSidebar(false);
-    }
+    if (next.size === 0) setShowCompareSidebar(false);
   };
 
   const clearAllCompare = () => {
@@ -170,430 +164,249 @@ export default function ProductGridComponent() {
     setShowCompareSidebar(false);
   };
 
-  // Navigation functions
-  const handleViewDetails = (product) => {
-    navigate(`/product/${product.id}`, { 
-      state: { product } 
-    });
-  };
+  const comparedProductsData = Array.from(compareProducts)
+    .map(id => dbProducts.find(p => p._id === id))
+    .filter(Boolean);
 
-  const handleBuyNow = (product) => {
-    // Add product to cart
-    const existingItem = cart.find(item => item.id === product.id);
-    
-    if (existingItem) {
-      setCart(cart.map(item =>
-        item.id === product.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
-    }
-    
-    // Navigate to cart page
-    navigate('/cart');
-  };
-
-  const handleAddToCart = (product) => {
-    const existingItem = cart.find(item => item.id === product.id);
-    
-    if (existingItem) {
-      setCart(cart.map(item =>
-        item.id === product.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
-    }
-    
-    // Show success notification
-    alert(`${product.title} added to cart!`);
-  };
-
-  function filteredProducts() {
-    let arr = products.filter((p) => p.price >= minPrice && p.price <= maxPrice);
-
-    if (selectedBrands.size > 0) {
-      arr = arr.filter((p) => selectedBrands.has(p.brand));
-    }
-
-    if (sort === "price-asc") arr = arr.slice().sort((a, b) => a.price - b.price);
-    if (sort === "price-desc") arr = arr.slice().sort((a, b) => b.price - a.price);
-
-    return arr;
+  // Render Loader
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA]">
+        <Loader2 className="w-12 h-12 text-amber-600 animate-spin mb-6" strokeWidth={1}/>
+        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.3em] animate-pulse">Curating The Collection...</span>
+      </div>
+    );
   }
 
-  const paginated = filteredProducts().slice((page - 1) * perPage, page * perPage);
-  const totalPages = Math.ceil(filteredProducts().length / perPage);
-
-  // Get compared products data
-  const comparedProducts = Array.from(compareProducts).map(id => 
-    products.find(p => p.id === id)
-  ).filter(Boolean);
+  const visibleBrands = showMoreBrands ? dynamicBrands : dynamicBrands.slice(0, 6);
+  const pageTitle = brandFilter ? `${brandFilter}` : searchFilter ? `"${searchFilter}"` : typeFilter || categoryFilter || "The Complete";
 
   return (
-    <div className="min-h-screen bg-white p-4 relative">
-      {/* Bestselling Products Heading */}
-      <div className="max-w-[1400px] mx-auto mb-8">
-        <div className="text-left">
-          <h1 className="text-5xl md:text-6xl font-light mb-6">
-          Bestselling <span className="font-semibold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">Products</span>
-          </h1>
+    <div className="min-h-screen bg-[#FAFAFA] font-sans pb-24 pt-28">
+      
+      {/* === HEADER SECTION (Cinematic Banner) === */}
+      <div className="relative w-full h-[40vh] min-h-[350px] mb-12 flex items-center mt-[-112px]"> 
+        <div className="absolute inset-0">
+          <img src={getHeaderImage(pageTitle)} alt={pageTitle} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#FAFAFA] via-transparent to-transparent opacity-90" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-[1500px] mx-auto px-6 lg:px-12 flex flex-col md:flex-row md:items-end justify-between gap-8 pt-24">
+            <div className="max-w-3xl">
+                <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="flex items-center gap-3 mb-4">
+                    <span className="w-8 h-[1px] bg-amber-500" />
+                    <span className="text-[10px] font-bold tracking-[0.25em] uppercase text-amber-500">Masterpieces</span>
+                </motion.div>
+                <motion.h1 initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay: 0.1}} className="text-5xl md:text-6xl lg:text-7xl font-serif text-white tracking-tight leading-[1.1] capitalize drop-shadow-lg">
+                  {pageTitle} <span className="italic font-light text-gray-300">Collection.</span>
+                </motion.h1>
+            </div>
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay: 0.3}} className="text-sm text-gray-300 font-light flex items-center gap-2 bg-black/40 backdrop-blur-md px-5 py-2.5 rounded-full border border-white/10 shadow-xl mb-4 md:mb-0">
+                Showing <strong className="text-white font-medium">{resultList.length}</strong> exclusive designs
+            </motion.div>
         </div>
       </div>
 
-      {/* Compare Sidebar */}
-      <div className={`fixed top-0 right-0 h-full bg-white shadow-2xl z-50 transition-transform duration-300 ${
-        showCompareSidebar ? 'translate-x-0' : 'translate-x-full'
-      }`} style={{ width: '480px' }}>
-        <div className="h-full flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold">
-              Compare Products ({compareProducts.size}/4)
-            </h2>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={clearAllCompare}
-                className="text-sm text-gray-600 hover:text-black underline"
-              >
+      <div className="max-w-[1500px] mx-auto px-6 lg:px-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
+        
+        {/* === LEFT SIDEBAR: FILTERS === */}
+        <aside className="lg:col-span-3 h-fit lg:sticky lg:top-32">
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
+            <h3 className="text-sm font-bold uppercase tracking-[0.15em] text-gray-900 flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4" /> Refine
+            </h3>
+            {(selectedBrands.size > 0 || minPrice > 0 || maxPrice < 500000) && (
+              <button onClick={removeAllFilters} className="text-[10px] font-bold uppercase tracking-widest text-amber-600 hover:text-gray-900 transition-colors">
                 Clear All
               </button>
-              <button 
-                onClick={() => setShowCompareSidebar(false)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                ✕
-              </button>
-            </div>
+            )}
           </div>
 
-          {/* Compare Content */}
-          <div className="flex-1 overflow-auto p-6">
-            {comparedProducts.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                <p>No products selected for comparison</p>
-                <p className="text-sm mt-2">Select up to 4 products to compare</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Products Row */}
-                <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${comparedProducts.length}, 1fr)` }}>
-                  {comparedProducts.map((product) => (
-                    <div key={product.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="h-32 bg-gray-100 rounded flex items-center justify-center mb-3 overflow-hidden">
-                        <img 
-                          src={product.image} 
-                          alt={product.title}
-                          className="w-full h-full object-cover"
-                        />
+          <div className="space-y-10">
+            {dynamicBrands.length > 0 && (
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-5">Design Houses</h4>
+                <div className="space-y-3.5">
+                  {visibleBrands.map((b) => (
+                    <label key={b.name} className="flex items-center justify-between cursor-pointer group">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-300 ${selectedBrands.has(b.name) ? 'bg-amber-600 border-amber-600 shadow-[0_0_10px_rgba(217,119,6,0.3)]' : 'bg-transparent border-gray-300 group-hover:border-amber-400'}`}>
+                           {selectedBrands.has(b.name) && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                        </div>
+                        <input type="checkbox" checked={selectedBrands.has(b.name)} onChange={() => toggleBrand(b.name)} className="hidden" />
+                        <span className={`text-sm transition-colors duration-300 ${selectedBrands.has(b.name) ? 'text-gray-900 font-medium' : 'text-gray-500 group-hover:text-gray-900'}`}>{b.name}</span>
                       </div>
-                      <h4 className="text-sm font-medium line-clamp-2 mb-2">{product.title}</h4>
-                      <div className="text-lg font-bold text-green-600">
-                        ₹{product.price.toLocaleString()}
-                      </div>
-                      <button 
-                        onClick={() => removeFromCompare(product.id)}
-                        className="w-full mt-3 py-2 border border-red-500 text-red-500 rounded text-sm hover:bg-red-50"
-                      >
-                        Remove
-                      </button>
-                    </div>
+                      <span className="text-[10px] text-gray-400 font-medium">{b.count}</span>
+                    </label>
                   ))}
                 </div>
-
-                {/* Features Comparison */}
-                <div className="border-t pt-6">
-                  <h3 className="font-semibold mb-4">Features Comparison</h3>
-                  <div className="space-y-3">
-                    {['Brand', 'Price', 'Capacity', 'Power', 'Features'].map((feature) => (
-                      <div key={feature} className="grid gap-4 text-sm" style={{ gridTemplateColumns: `repeat(${comparedProducts.length + 1}, 1fr)` }}>
-                        <div className="font-medium text-gray-700">{feature}</div>
-                        {comparedProducts.map((product) => (
-                          <div key={`${product.id}-${feature}`}>
-                            {feature === 'Brand' && <span>{product.brand}</span>}
-                            {feature === 'Price' && <span>₹{product.price.toLocaleString()}</span>}
-                            {feature === 'Capacity' && <span>{product.features[0]}</span>}
-                            {feature === 'Power' && <span>{product.features[1]}</span>}
-                            {feature === 'Features' && (
-                              <ul className="text-xs space-y-1">
-                                {product.features.slice(2).map((feat, idx) => (
-                                  <li key={idx}>• {feat}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                {dynamicBrands.length > 6 && (
+                  <button onClick={() => setShowMoreBrands(!showMoreBrands)} className="mt-5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-amber-600 transition-colors flex items-center gap-1">
+                    {showMoreBrands ? "- View Less" : "+ View All"}
+                  </button>
+                )}
               </div>
             )}
-          </div>
 
-          {/* Footer */}
-          {comparedProducts.length > 0 && (
-            <div className="border-t border-gray-200 p-6">
-              <button className="w-full py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition">
-                Compare Selected Products
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Compare FAB */}
-      {compareProducts.size > 0 && !showCompareSidebar && (
-        <button 
-          onClick={() => setShowCompareSidebar(true)}
-          className="fixed bottom-6 right-6 bg-black text-white px-6 py-3 rounded-full shadow-lg hover:bg-gray-800 transition flex items-center gap-2 z-40"
-        >
-          <span>Compare ({compareProducts.size})</span>
-        </button>
-      )}
-
-      <div className="max-w-[1400px] mx-auto grid grid-cols-12 gap-16">
-        {/* Filters */}
-        <aside className="col-span-3 bg-white mt-10 h-fit">
-          {/* Filter Header with Remove All */}
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold tracking-wide">Filter:</h3>
-            {(selectedBrands.size > 0 || selectedInstallations.size > 0) && (
-              <button 
-                onClick={removeAllFilters}
-                className="text-sm text-gray-600 hover:text-black underline"
-              >
-                Remove all
-              </button>
-            )}
-          </div>
-
-          {/* Active Filter Tags */}
-          {selectedBrands.size > 0 && (
-            <div className="mb-4 flex flex-wrap gap-2">
-              {Array.from(selectedBrands).map((brand) => (
-                <div key={brand} className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded text-sm">
-                  <span>Brand: {brand}</span>
-                  <button 
-                    onClick={() => removeBrand(brand)}
-                    className="text-gray-500 hover:text-black ml-1"
-                  >
-                    ✖
-                  </button>
+            <div>
+              <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-5">Investment Range</h4>
+              <div className="flex items-center gap-3">
+                <div className="relative w-full">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                    <input type="number" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value))} className="w-full bg-white border border-gray-200 rounded-lg pl-7 pr-3 py-2.5 text-sm text-gray-900 outline-none focus:border-amber-500 transition-all shadow-sm" placeholder="Min" />
                 </div>
+                <span className="text-gray-300">—</span>
+                <div className="relative w-full">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                    <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} className="w-full bg-white border border-gray-200 rounded-lg pl-7 pr-3 py-2.5 text-sm text-gray-900 outline-none focus:border-amber-500 transition-all shadow-sm" placeholder="Max" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* === RIGHT COLUMN: PRODUCT GRID === */}
+        <main className="lg:col-span-9">
+          <div className="flex justify-end mb-8">
+              <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
+                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Sort by</label>
+                <select value={sort} onChange={(e) => setSort(e.target.value)} className="bg-transparent text-xs font-bold text-gray-900 outline-none cursor-pointer">
+                  <option value="best">Recommended</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                </select>
+              </div>
+          </div>
+
+          {paginated.length === 0 ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-40">
+              <SearchX className="w-16 h-16 text-gray-200 mx-auto mb-6" strokeWidth={1} />
+              <h3 className="text-3xl font-serif text-gray-900 mb-3">No Masterpieces Found</h3>
+              <p className="text-gray-500 font-light mb-8 max-w-sm mx-auto">Try adjusting your filters or explore our complete architectural collection.</p>
+              <button onClick={removeAllFilters} className="bg-gray-900 text-white px-8 py-4 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-amber-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1">
+                Clear All Filters
+              </button>
+            </motion.div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-10">
+              {paginated.map((p, index) => (
+                <motion.article 
+                  initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05, ease: "easeOut" }}
+                  key={p._id} 
+                  className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all duration-300 flex flex-col relative"
+                >
+                  {/* Explicit Compare Checkbox */}
+                  <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-gray-200 shadow-sm flex items-center gap-2 cursor-pointer hover:bg-gray-50 transition-colors">
+                     <input type="checkbox" checked={compareProducts.has(p._id)} onChange={() => toggleCompare(p._id)} className="w-3.5 h-3.5 accent-amber-600 cursor-pointer" />
+                     <span className="text-[9px] font-bold text-gray-600 uppercase tracking-widest pt-[1px]">Compare</span>
+                  </div>
+
+                  {/* Product Image */}
+                  <div className="relative bg-[#F5F5F7] aspect-[4/3] flex items-center justify-center p-8 cursor-pointer" onClick={() => navigate(`/product-details/${p._id}`)}>
+                    <img src={getImageUrl(p.image)} alt={p.name} className="w-full h-full object-contain mix-blend-multiply transition-transform duration-700 hover:scale-105" />
+                  </div>
+
+                  {/* Product Details & Actions */}
+                  <div className="p-6 flex flex-col flex-1">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.25em] mb-1.5 block">{p.brand || 'Exclusive'}</span>
+                    <h4 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 mb-3 cursor-pointer hover:text-amber-600 transition-colors" onClick={() => navigate(`/product-details/${p._id}`)}>
+                      {p.name}
+                    </h4>
+                    
+                    <div className="mt-auto mb-5">
+                      <div className="text-xl font-serif font-bold text-gray-900 tracking-tight">₹{p.price?.toLocaleString()}</div>
+                    </div>
+
+                    {/* Explicit Actions (Details & Add to Cart) */}
+                    <div className="flex gap-3">
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/product-details/${p._id}`); }} className="flex-1 py-3 bg-[#F9FAFB] border border-gray-200 rounded-xl text-[10px] font-bold uppercase tracking-widest text-gray-600 hover:bg-white hover:border-gray-300 hover:shadow-sm transition-all">
+                        Details
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); handleBuyNow(p); }} className="flex-1 py-3 bg-gray-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-amber-600 shadow-md hover:shadow-amber-500/20 transition-all">
+                        Add to List
+                      </button>
+                    </div>
+                  </div>
+                </motion.article>
               ))}
             </div>
           )}
 
-          <div className="border-t border-gray-200">
-            {/* Brand Filter */}
-            <details className="border-b border-gray-200 group" open>
-              <summary className="flex items-center justify-between py-3 text-sm text-gray-800 cursor-pointer list-none">
-                <div className="flex items-center gap-2">
-                  <span>Brand</span>
-                  {selectedBrands.size > 0 && (
-                    <span className="bg-gray-200 text-xs px-2 py-0.5 rounded">
-                      {selectedBrands.size}
-                    </span>
-                  )}
-                </div>
-                <span className="transition-transform duration-200 group-open:rotate-180 text-gray-500">
-                  ▾
-                </span>
-              </summary>
-
-              <div className="pb-3 space-y-2">
-                <div className="space-y-2 max-h-56 overflow-auto pr-1">
-                  {visibleBrands.map((b) => (
-                    <label
-                      key={b.name}
-                      className="flex items-center justify-between text-sm gap-2 cursor-pointer hover:bg-gray-50 px-1 py-1 rounded"
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedBrands.has(b.name)}
-                          onChange={() => toggleBrand(b.name)}
-                          className="h-4 w-4 border-gray-400 rounded-sm"
-                        />
-                        <span>{b.name}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">({b.count})</span>
-                    </label>
-                  ))}
-                </div>
-                {brandList.length > 8 && (
-                  <button
-                    onClick={() => setShowMoreBrands(!showMoreBrands)}
-                    className="mt-1 text-xs font-medium text-gray-700 underline"
-                  >
-                    {showMoreBrands ? "Show less" : "+ Show more"}
-                  </button>
-                )}
-              </div>
-            </details>
-
-            {/* Price Filter */}
-            <details className="border-b border-gray-200 group">
-              <summary className="flex items-center justify-between py-3 text-sm text-gray-800 cursor-pointer list-none">
-                <span>Price</span>
-                <span className="transition-transform duration-200 group-open:rotate-180 text-gray-500">
-                  ▾
-                </span>
-              </summary>
-
-              <div className="pb-3">
-                <div className="flex items-center gap-2 text-xs">
-                  <input
-                    type="number"
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(Number(e.target.value))}
-                    className="w-20 border border-gray-300 rounded px-2 py-1"
-                    placeholder="Min"
-                  />
-                  <span>—</span>
-                  <input
-                    type="number"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(Number(e.target.value))}
-                    className="w-20 border border-gray-300 rounded px-2 py-1"
-                    placeholder="Max"
-                  />
-                </div>
-              </div>
-            </details>
-
-            {/* Installation Type Filter */}
-            <details className="border-b border-gray-200 group">
-              <summary className="flex items-center justify-between py-3 text-sm text-gray-800 cursor-pointer list-none">
-                <span>Installation Type</span>
-                <span className="transition-transform duration-200 group-open:rotate-180 text-gray-500">
-                  ▾
-                </span>
-              </summary>
-
-              <div className="pb-3 space-y-2">
-                <div className="space-y-2 max-h-56 overflow-auto pr-1">
-                  {installationTypes.map((type) => (
-                    <label
-                      key={type.name}
-                      className="flex items-center justify-between text-sm gap-2 cursor-pointer hover:bg-gray-50 px-1 py-1 rounded"
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedInstallations.has(type.name)}
-                          onChange={() => toggleInstallation(type.name)}
-                          className="h-4 w-4 border-gray-400 rounded-sm"
-                        />
-                        <span>{type.name}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">({type.count})</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </details>
-          </div>
-        </aside>
-
-        {/* Products */}
-        <main className="col-span-9">
-          <div className="flex items-center justify-between mb-5">
-            <div className="text-sm text-gray-600 font-medium">{filteredProducts().length} products found</div>
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-600">Sort by:</label>
-              <select value={sort} onChange={(e) => setSort(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white shadow-sm hover:border-black transition">
-                <option value="best">Best selling</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {paginated.map((p) => (
-              <article
-                key={p.id}
-                className="bg-white border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 "
-              >
-                <div className="relative bg-gradient-to-b from-gray-200 via-gray-100 to-white h-60 flex items-center justify-center overflow-hidden">
-                  <img 
-                    src={p.image} 
-                    alt={p.title} 
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110" 
-                  />
-                  {p.badge && (
-                    <span className="absolute left-4 top-4 bg-black text-white text-xs font-semibold px-3 py-1 rounded-full shadow">
-                      {p.badge}
-                    </span>
-                  )}
-                </div>
-
-                <div className="p-5">
-                  <h4 className="text-[15px] font-semibold text-gray-900 leading-tight line-clamp-2 text-left mb-2">
-                    {p.title}
-                  </h4>
-
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                      {p.brand}
-                    </span>
-                  </div>
-
-                  <div className="mt-2 flex items-baseline gap-3">
-                    <div className="text-xl font-bold text-green-600">₹{p.price.toLocaleString()}</div>
-                    <div className="text-sm text-gray-400 line-through">
-                      ₹{p.oldPrice.toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-3">
-                    <input 
-                      type="checkbox" 
-                      checked={compareProducts.has(p.id)}
-                      onChange={() => toggleCompare(p.id)}
-                      className="w-4 h-4 border-gray-400 rounded-sm" 
-                    />
-                    <span className="text-sm text-gray-700">Compare</span>
-                  </div>
-
-                  <div className="flex gap-3 mt-5">
-                    <button 
-                      onClick={() => handleViewDetails(p)}
-                      className="w-1/2 py-2 border border-black rounded-lg text-sm font-medium hover:bg-gray-100 transition"
-                    >
-                      View Details
-                    </button>
-                    <button 
-                      onClick={() => handleBuyNow(p)}
-                      className="w-1/2 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition"
-                    >
-                      Buy Now
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-
           {/* Pagination */}
-          <div className="flex justify-center mt-8 gap-3">
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button 
-                key={i} 
-                onClick={() => setPage(i + 1)} 
-                className={`px-4 py-2 rounded-md border text-sm ${page === i + 1 ? "bg-yellow-400 text-white border-yellow-400" : "bg-white border-gray-300"}`}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-20 gap-3 border-t border-gray-100 pt-10">
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button 
+                  key={i} onClick={() => { setPage(i + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                  className={`w-12 h-12 rounded-full text-xs font-bold flex items-center justify-center transition-all duration-300 ${page === i + 1 ? "bg-gray-900 text-white shadow-lg" : "bg-white border border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-900"}`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          )}
         </main>
       </div>
+
+      {/* === COMPARE SIDEBAR === */}
+      <AnimatePresence>
+        {showCompareSidebar && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCompareSidebar(false)} className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" />
+            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="fixed top-0 right-0 h-full w-full max-w-md bg-[#0a0a0a] text-white shadow-2xl z-50 flex flex-col">
+              <div className="flex items-center justify-between p-8 border-b border-white/10">
+                <h2 className="text-2xl font-serif tracking-tight">Compare ({compareProducts.size}/4)</h2>
+                <div className="flex items-center gap-5">
+                  <button onClick={clearAllCompare} className="text-[9px] uppercase tracking-widest font-bold text-white/50 hover:text-amber-500 transition-colors">Clear</button>
+                  <button onClick={() => setShowCompareSidebar(false)} className="text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"><X className="w-5 h-5"/></button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto p-8 custom-scrollbar">
+                {comparedProductsData.length === 0 ? (
+                  <div className="text-center text-white/30 mt-20">
+                    <SlidersHorizontal className="w-12 h-12 mx-auto mb-5 opacity-50" strokeWidth={1} />
+                    <p className="text-sm font-light">No items selected.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="grid gap-4 grid-cols-2">
+                      {comparedProductsData.map((product) => (
+                        <div key={product._id} className="bg-white/5 rounded-2xl p-4 flex flex-col relative group border border-white/10">
+                          <button onClick={() => removeFromCompare(product._id)} className="absolute top-2 right-2 p-1.5 bg-black/50 text-white/50 rounded-full hover:text-red-500 hover:bg-black z-10 transition-all"><X className="w-3 h-3"/></button>
+                          <div className="h-28 bg-white rounded-xl flex items-center justify-center mb-4 p-3">
+                            <img src={getImageUrl(product.image)} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" />
+                          </div>
+                          <p className="text-[9px] uppercase tracking-widest font-bold text-amber-500 mb-1">{product.brand || 'Exclusive'}</p>
+                          <h4 className="text-xs font-medium text-white/90 line-clamp-2 mb-3 flex-grow">{product.name}</h4>
+                          <div className="text-sm font-serif text-white">₹{product.price?.toLocaleString()}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Add Navigation to a dedicated compare page if needed, or keep as specs view trigger */}
+                    <button className="w-full mt-6 py-4 bg-amber-600 text-black text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-amber-500 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                      View Detailed Specs
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* COMPARE FLOATING BUTTON */}
+      {compareProducts.size > 0 && !showCompareSidebar && (
+        <button 
+          onClick={() => setShowCompareSidebar(true)}
+          className="fixed bottom-8 right-8 bg-gray-900 text-white pl-6 pr-2 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:bg-amber-600 hover:-translate-y-1 transition-all flex items-center gap-4 z-40"
+        >
+          <span className="text-[10px] font-bold uppercase tracking-widest">Compare</span>
+          <span className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">{compareProducts.size}</span>
+        </button>
+      )}
+
     </div>
   );
 }

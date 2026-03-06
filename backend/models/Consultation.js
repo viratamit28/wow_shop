@@ -13,29 +13,29 @@ const ConsultationSchema = new Schema({
     customerDetails: {
         name: { type: String, required: true },
         phone: { type: String, required: true },
-        email: { type: String }, // Optional
+        email: { type: String }, 
         
-        // Structured Address (Object format me data aayega)
+        // Structured Address
         address: {
-            line: { type: String, required: true }, // Street/Landmark
-            city: { type: String, required: true },
+            line: { type: String, required: true }, // Frontend ka 'location' yahan aayega
+            city: { type: String }, // Made optional
             state: { type: String },
-            pincode: { type: String, required: true }
+            pincode: { type: String } // Made optional
         }
     },
 
     // 2. Appointment Scheduling Details
     appointment: {
-        date: { type: Date, required: true },       // Example: 2023-10-25
-        timeSlot: { type: String, required: true }, // Example: "10:00 AM - 12:00 PM"
-        message: { type: String }                   // User ka koi note
+        date: { type: Date, default: Date.now }, // Default aaj ki date
+        timeSlot: { type: String, default: 'TBD' }, // Default TBD
+        message: { type: String } // Frontend ka Project Type aur Budget yahan save karenge
     },
 
-    // 3. Products Info
+    // 3. Products Info (Optional for Consultation)
     interestedProducts: [
         {
-            id: { type: String, required: true }, 
-            name: { type: String, required: true },
+            id: { type: String }, 
+            name: { type: String },
             image: { type: String }, 
             qty: { type: Number, default: 1 },
             price: { type: Number } 
@@ -45,17 +45,15 @@ const ConsultationSchema = new Schema({
     // 4. Financials
     totalEstimatedValue: {
         type: Number,
-        required: true
+        default: 0 // Made optional with default 0
     },
 
-    // 5. Status Tracking (UPDATED: Flexible Logic)
+    // 5. Status Tracking
     status: {
         type: String,
         default: 'Pending Expert Call' 
-        // Maine yahan se 'enum' hata diya hai.
-        // Ab aap 'Cancelled', 'Site Visit Done' kuch bhi status daal sakte hain, error nahi aayega.
     }
 
-}, { timestamps: true }); // Automatically adds 'createdAt' and 'updatedAt'
+}, { timestamps: true });
 
 module.exports = mongoose.model('consultation', ConsultationSchema);

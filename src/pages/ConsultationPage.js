@@ -1,14 +1,32 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { motion } from 'framer-motion';
 import { AuthContext } from '../context/AuthContext';
 import { 
-  Phone, User, MapPin, Calendar, CheckCircle, 
-  ArrowLeft, FileText, Navigation, Clock, Loader2 
+  ArrowLeft, Navigation, Loader2, CheckCircle, ShieldCheck, ShoppingBag
 } from 'lucide-react';
 
-// 🔥 CLOUDINARY CONFIG
 const CLOUDINARY_BASE_URL = "https://res.cloudinary.com/dcljdkqer/image/upload/";
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+
+const getFinalImageUrl = (product) => {
+  if (!product) return "https://placehold.co/100?text=No+Img";
+  let displayImg = product.image;
+  if (Array.isArray(displayImg)) displayImg = displayImg.length > 0 ? displayImg[0] : "";
+  return displayImg && displayImg.startsWith('http') ? displayImg : `${CLOUDINARY_BASE_URL}${displayImg}.jpg`;
+};
+
+// --- Clean, Standard Input Field (Wow_Shop Theme) ---
+const CleanInput = ({ label, type = "text", name, value, onChange, placeholder, required = true, min, className = "" }) => (
+  <div className={`flex flex-col gap-1.5 ${className}`}>
+    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-500">{label} {required && '*'}</label>
+    <input 
+      type={type} name={name} required={required} value={value} onChange={onChange} min={min} placeholder={placeholder} 
+      className="w-full bg-white border border-gray-200 text-gray-900 text-sm px-4 py-3.5 rounded-xl outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all placeholder:text-gray-400 shadow-sm" 
+    />
+  </div>
+);
 
 export default function ConsultationPage() {
   const { state } = useLocation(); 
@@ -19,376 +37,371 @@ export default function ConsultationPage() {
   const [locLoading, setLocLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   
-  // Form State
   const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '', 
-    addressLine: '',
-    city: '',
-    pincode: '',
-    scheduledDate: '',
-    scheduledTime: '',
-    message: ''
+    name: '', phone: '', email: '', 
+    addressLine: '', city: '', pincode: '', stateCode: '', 
+    scheduledDate: '', scheduledTime: '', message: ''
   });
 
-  // 1. User Data Auto-Fill (Sirf page load hone par ek baar)
-  useEffect(() => {
-    if (user && !formData.name) { // Check lagaya taaki user ka type kiya hua overwrite na ho
-      setFormData(prev => ({
-        ...prev,
-        name: user.name || '',
-        phone: user.phone || '',
-        email: user.email || ''
-      }));
-    }
-  }, [user]);
+  const { name, phone, email, addressLine, city, pincode, stateCode, scheduledDate, scheduledTime, message } = formData;
 
-  // Redirect if no cart state
   useEffect(() => {
-    if (!state || !state.cart || state.cart.length === 0) {
-       // Optional Redirect logic here
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (user && !name) { 
+      setFormData(prev => ({ ...prev, name: user.name || '', phone: user.phone || '', email: user.email || '' }));
     }
-  }, [state, navigate]);
+  }, [user]); 
 
-  // 2. Auto-Detect Location
   const detectLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
-      return;
-    }
-
+    if (!navigator.geolocation) return alert("Geolocation is not supported by your browser");
     setLocLoading(true);
-
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          const response = await axios.get(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-          
+          const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const address = response.data.address;
-          
           setFormData(prev => ({
             ...prev,
-            addressLine: `${address.road || ''}, ${address.suburb || ''}, ${address.neighbourhood || ''}`,
+            addressLine: `${address.road || ''}, ${address.suburb || ''}, ${address.neighbourhood || ''}`.replace(/^,\s*/, ''),
             city: address.city || address.town || address.village || '',
             pincode: address.postcode || '',
-            state: address.state || ''
+            stateCode: address.state || ''
           }));
-          
-        } catch (error) {
-          console.error("Location Fetch Error", error);
-          alert("Location detected but failed to get address details. Please fill manually.");
-        } finally {
-          setLocLoading(false);
-        }
+        } catch (error) { alert("Failed to get address. Please fill manually."); } 
+        finally { setLocLoading(false); }
       },
-      () => {
-        setLocLoading(false);
-        alert("Unable to retrieve your location. Please enable GPS permissions.");
-      }
+      () => { setLocLoading(false); alert("Unable to retrieve location."); }
     );
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
- const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!token) return alert("Please login to submit request");
+    if (!state?.cart?.length) return alert("Portfolio is empty!");
+
     setLoading(true);
-
-    // 1. Token Check (Database save karne ke liye zaroori hai)
-    if (!token) {
-        alert("Please login to submit request");
-        setLoading(false);
-        return;
-    }
-
-    if (!state || !state.cart || state.cart.length === 0) {
-        alert("Cart is empty!");
-        setLoading(false);
-        return;
-    }
-
     try {
-     // ==========================================
-      // STEP 1: DATABASE ME SAVE KARNE WALA DATA 
-      // ==========================================
-      const dbPayload = {
-        customerDetails: {
-            name: formData.name,
-            phone: formData.phone,
-            email: formData.email,
-            address: {
-                line: formData.addressLine,
-                city: formData.city,
-                pincode: formData.pincode
-            }
-        },
-        appointment: {
-            date: formData.scheduledDate,
-            timeSlot: formData.scheduledTime,
-            message: formData.message
-        },
-        
-        // 👇 YAHAN FIX KIYA HAI 👇
-        interestedProducts: state.cart.map(i => {
-            // Image data nikal rahe hain
-            const rawImage = i.product?.image || i.image;
-            // Agar image Array hai toh pehli image [0] lo, warna normal string lo
-            const singleImage = Array.isArray(rawImage) ? rawImage[0] : rawImage;
-
-            return { 
-                id: i.product?._id || i.productId || i._id, 
-                name: i.product?.name || i.title || i.name, 
-                image: singleImage, // Ab ye hamesha ek single string (URL) jayega
-                price: i.product?.price || i.price, 
-                qty: i.quantity || i.qty
-            };
-        }),
-        
-        totalEstimatedValue: state?.total || 0
+      const productString = state.cart.map(item => `${item.product?.name || item.name} (Qty: ${item.quantity || item.qty})`).join(', ');
+      
+      const unifiedPayload = {
+        customerDetails: { name, phone, email, address: { line: addressLine, city, pincode } },
+        appointment: { date: scheduledDate, timeSlot: scheduledTime, message },
+        interestedProducts: state.cart.map(i => ({ 
+            id: i.product?._id || i.productId || i._id, 
+            name: i.product?.name || i.title || i.name, 
+            image: Array.isArray(i.product?.image || i.image) ? (i.product?.image || i.image)[0] : (i.product?.image || i.image), 
+            price: i.product?.price || i.price, 
+            qty: i.quantity || i.qty
+        })),
+        totalEstimatedValue: state?.total || 0,
+        Name: name, ContactNo: phone, EMailId: email, Address: addressLine, City: city, ZipCode: pincode,
+        PreferredSlot: `${scheduledDate} ${scheduledTime}`, Instructions: message || "No special instructions",
+        ProductDetails: productString, WebUrl: window.location.href 
       };
 
-      // Apne MongoDB me save karo (Token ke sath)
-      await axios.post('http://localhost:5000/api/consultation/create', dbPayload, {
-        headers: { 'auth-token': token }
-      });
-      console.log("✅ Saved to MongoDB successfully");
-
-
-      // ==========================================
-      // STEP 2: CRM ME BHEJNE WALA DATA
-      // ==========================================
-      const productString = state.cart.map(item => 
-        `${item.product?.name || item.title || item.name} (Qty: ${item.quantity || item.qty})`
-      ).join(', ');
-
-      const crmPayload = {
-        Name: formData.name,
-        ContactNo: formData.phone,
-        EMailId: formData.email,
-        Address: formData.addressLine, 
-        City: formData.city,
-        ZipCode: formData.pincode,
-        PreferredSlot: `${formData.scheduledDate} ${formData.scheduledTime}`, 
-        Instructions: formData.message || "No special instructions",
-        ProductDetails: productString,
-        WebUrl: window.location.href 
-      };
-
-      // CRM ko bhejo (Bina token ke chalega kyunki proxy route hai)
-      await axios.post('http://localhost:5000/api/consultation/add-lead', crmPayload);
-      console.log("✅ Sent to CRM successfully");
-
-      // ==========================================
-      // STEP 3: SUCCESS 
-      // ==========================================
+      await axios.post(`${BACKEND_URL}/api/consultation/create`, unifiedPayload, { headers: { 'auth-token': token } });
       setSuccess(true);
       refreshCart(); 
-
-    } catch (err) {
-      console.error("Submission Error:", err);
-      alert("Kuch error aagya, console check karo.");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { alert("Unable to process request. Please try again."); } 
+    finally { setLoading(false); }
   };
-  // --- 🔥 SUCCESS SCREEN (UPDATED) ---
+
+  // =======================================================================
+  // --- LUXURY DIGITAL RECEIPT SUCCESS SCREEN (Wow_Shop Theme) ---
+  // =======================================================================
   if (success) {
+    const orderId = "WOW-" + Math.floor(100000 + Math.random() * 900000);
+    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-center px-4 pt-20">
-            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
-                <CheckCircle className="w-12 h-12 text-green-600" />
-            </div>
-            <h1 className="text-4xl font-serif font-bold mb-4 text-gray-900">Request Received!</h1>
-            
-            {/* ✅ NAME FIX: formData.name show karega */}
-            <p className="text-gray-600 max-w-lg mb-8 text-lg leading-relaxed">
-                Thank you, <strong>{formData.name}</strong>. We have received your consultation request.<br/>
-                Our expert will visit on <span className="font-bold text-black">{formData.scheduledDate}</span> between <span className="font-bold text-black">{formData.scheduledTime}</span>.
-            </p>
-            
-            <div className="flex flex-col md:flex-row gap-4">
-                {/* ✅ TRACK BUTTON ADDED */}
-                <button onClick={() => navigate('/profile')} className="bg-black text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg">
-                    Track Request
+      <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center p-6 md:p-28 font-sans pt-28 ">
+        <div className="max-w-6xl w-full mx-auto flex flex-col lg:flex-row gap-12 lg:gap-24 items-center lg:items-start">
+          
+          {/* LEFT SIDE: Thank You Message & Billing Info */}
+          <motion.div 
+            initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, ease: "easeOut" }}
+            className="flex-1 w-full lg:pt-10"
+          >
+             <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif text-gray-900 mb-6 tracking-tight leading-[1.1]">
+               Thank you for <br /> your request.
+             </h1>
+             <p className="text-gray-600 mb-12 leading-relaxed text-sm md:text-base max-w-md font-light">
+               Your site consultation request has been received. Our experts will contact you shortly to confirm technical details and layout plans.
+             </p>
+
+             <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-amber-600 mb-6 border-b border-gray-200 pb-3">Site Details</h3>
+             
+             <div className="grid grid-cols-[100px_1fr] gap-y-6 text-sm mb-12 max-w-md">
+               <span className="font-bold text-gray-900">Name</span> 
+               <span className="text-gray-600">{name}</span>
+               
+               <span className="font-bold text-gray-900">Address</span> 
+               <span className="text-gray-600 leading-relaxed">{addressLine},<br/>{city}, {stateCode} {pincode}</span>
+               
+               <span className="font-bold text-gray-900">Phone</span> 
+               <span className="text-gray-600">{phone}</span>
+               
+               <span className="font-bold text-gray-900">Email</span> 
+               <span className="text-gray-600">{email}</span>
+             </div>
+
+             <div className="flex gap-4">
+                <button onClick={() => navigate('/profile')} className="bg-gray-900 text-white px-8 py-4 rounded-xl text-[11px] font-bold uppercase tracking-[0.15em] shadow-lg shadow-black/10 hover:bg-amber-600 hover:-translate-y-1 transition-all duration-300">
+                  Track Portfolio
                 </button>
+                <button onClick={() => navigate('/')} className="bg-white border border-gray-200 text-gray-900 px-8 py-4 rounded-xl text-[11px] font-bold uppercase tracking-[0.15em] shadow-sm hover:border-gray-900 hover:-translate-y-1 transition-all duration-300 hidden sm:block">
+                  Return to Studio
+                </button>
+             </div>
+          </motion.div>
+
+          {/* RIGHT SIDE: The Aesthetic Digital Receipt */}
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full lg:w-[460px] shrink-0 filter drop-shadow-[0_20px_40px_rgba(0,0,0,0.06)]"
+          >
+             {/* The Grey "Ticket Holder" Top */}
+             <div className="bg-[#E5E7EB] h-5 rounded-t-[1.5rem] w-[90%] mx-auto mb-[-10px] relative z-0" />
+             
+             {/* Main Receipt Body */}
+             <div className="bg-white rounded-t-2xl p-8 md:p-10 relative z-10">
+                <h2 className="text-2xl font-serif text-gray-900 mb-8 border-b border-gray-100 pb-6">Request Summary</h2>
                 
-                <button onClick={() => navigate('/')} className="bg-white border-2 border-gray-200 text-gray-700 px-8 py-3 rounded-xl font-bold uppercase tracking-widest hover:bg-gray-50 transition-all">
-                    Back to Home
+                {/* Meta Information */}
+                <div className="grid grid-cols-3 gap-4 mb-8">
+                  <div>
+                    <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-1.5 font-bold">Date</p>
+                    <p className="text-[11px] font-bold text-gray-900">{today}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-1.5 font-bold">Request No.</p>
+                    <p className="text-[11px] font-bold text-gray-900">{orderId}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-1.5 font-bold">Time Slot</p>
+                    <p className="text-[11px] font-bold text-gray-900 truncate">{scheduledTime ? scheduledTime.split(' ')[0] : 'TBD'}</p>
+                  </div>
+                </div>
+
+                <div className="border-b border-gray-100 border-dashed mb-8" />
+
+                {/* Product List */}
+                <div className="space-y-6 mb-8 max-h-[30vh] overflow-y-auto pr-2 custom-scrollbar">
+                  {state.cart.map((item, idx) => {
+                     const product = item.product || item;
+                     return (
+                       <div key={idx} className="flex justify-between items-center gap-4">
+                          <div className="flex items-center gap-4 flex-1">
+                             <div className="w-14 h-14 bg-[#F5F5F7] border border-gray-100 rounded-xl flex items-center justify-center p-2 flex-shrink-0">
+                                <img src={getFinalImageUrl(product)} className="w-full h-full object-contain mix-blend-multiply" alt="" />
+                             </div>
+                             <div className="flex-1">
+                                <p className="text-xs font-bold text-gray-900 line-clamp-1 mb-1">{product.name}</p>
+                                <p className="text-[9px] text-gray-400 uppercase tracking-widest">Brand: {product.brand || 'Exclusive'}</p>
+                                <p className="text-[9px] text-gray-400 uppercase tracking-widest mt-0.5">Qty: {item.quantity}</p>
+                             </div>
+                          </div>
+                          <p className="text-xs font-bold text-gray-900 whitespace-nowrap">
+                             ₹{(product.price * item.quantity).toLocaleString()}
+                          </p>
+                       </div>
+                     )
+                  })}
+                </div>
+
+                <div className="border-b border-gray-100 border-dashed mb-6" />
+
+                {/* Calculation Totals */}
+                <div className="space-y-4 mb-8 text-sm">
+                   <div className="flex justify-between">
+                     <span className="text-gray-500 font-light">Sub Total</span>
+                     <span className="font-bold text-gray-900">₹{state.total?.toLocaleString()}</span>
+                   </div>
+                   <div className="flex justify-between">
+                     <span className="text-gray-500 font-light">White-Glove Service</span>
+                     <span className="font-bold text-amber-600 uppercase text-[10px] tracking-widest bg-amber-50 px-2 py-1 rounded">Included</span>
+                   </div>
+                </div>
+
+                <div className="border-b border-gray-200 mb-6" />
+                
+                {/* Final Total */}
+                <div className="flex justify-between items-end">
+                   <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Est. Value</span>
+                   <span className="text-3xl font-serif text-gray-900 tracking-tight">₹{state.total?.toLocaleString()}</span>
+                </div>
+             </div>
+             
+             {/* The Magic SVG Zig-Zag Bottom (Matched with #F5F5F7 Background) */}
+             <div className="w-full h-4 relative z-10" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 24 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0L12 12L24 0H0Z' fill='%23F5F5F7'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'repeat-x',
+                backgroundSize: '24px 12px'
+             }}></div>
+
+             <div className="text-center mt-6">
+                <button onClick={() => window.print()} className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-gray-900 transition-colors border-b border-transparent hover:border-gray-900 pb-0.5">
+                   Print Digital Receipt
                 </button>
-            </div>
+             </div>
+
+          </motion.div>
         </div>
+      </div>
     );
   }
 
+  // =======================================================================
   // --- EMPTY STATE ---
-  if (!state || !state.cart) {
+  // =======================================================================
+  if (!state?.cart?.length) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center pt-20">
-            <p className="text-gray-500 mb-4">No items selected for consultation.</p>
-            <button onClick={() => navigate('/')} className="text-amber-600 font-bold underline">Browse Products</button>
+        <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center p-6 text-center">
+            <ShoppingBag className="w-16 h-16 text-gray-300 mb-6" strokeWidth={1} />
+            <h2 className="text-3xl font-serif text-gray-900 mb-4">Portfolio Empty</h2>
+            <p className="text-gray-500 mb-8 max-w-sm mx-auto font-light">Select appliances from our studio before requesting a site consultation.</p>
+            <button onClick={() => navigate('/products')} className="bg-gray-900 text-white px-8 py-4 rounded-xl font-bold uppercase tracking-[0.15em] text-[11px] hover:bg-amber-600 transition-all shadow-lg hover:-translate-y-1">Explore Collection</button>
         </div>
       );
   }
 
+  // =======================================================================
+  // --- MAIN CHECKOUT FORM (Wow_Shop Theme) ---
+  // =======================================================================
   return (
-    <div className="min-h-screen bg-[#F8F8FA] pt-32 pb-20">
+    <div className="min-h-screen bg-white flex flex-col lg:flex-row font-sans selection:bg-amber-500 selection:text-white pt-20 lg:pt-0">
       
-      <div className="max-w-6xl mx-auto px-6 mb-10">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 hover:text-black mb-6 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back
+      {/* LEFT SIDE: FORM AREA (Clean White) */}
+      <div className="w-full lg:w-[55%] xl:w-[60%] px-6 lg:px-16 xl:px-24 pt-10 lg:pt-32 pb-20 order-2 lg:order-1">
+        
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-gray-400 hover:text-gray-900 transition-colors mb-10 font-bold w-fit">
+          <ArrowLeft className="w-4 h-4"/> Back to Portfolio
         </button>
-        <h1 className="text-3xl md:text-5xl font-serif font-bold text-gray-900 mb-2">Schedule Site Visit</h1>
-        <p className="text-gray-500">Auto-fill your details and select a convenient time for our experts.</p>
+
+        <h1 className="text-3xl md:text-5xl font-serif text-gray-900 mb-10 tracking-tight">Finalize Details</h1>
+
+        <form onSubmit={handleSubmit} className="space-y-12">
+          
+          {/* Section 1: Contact */}
+          <section>
+            <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-900 mb-6 border-b border-gray-100 pb-3 flex items-center gap-3">
+              <span className="w-6 h-[1px] bg-amber-600"></span> Contact
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <CleanInput label="Full Name" name="name" value={name} onChange={handleChange} placeholder="Enter your full name" className="md:col-span-2" />
+              <CleanInput type="email" label="Email Address" name="email" value={email} onChange={handleChange} placeholder="you@example.com" />
+              <CleanInput type="tel" label="Phone Number" name="phone" value={phone} onChange={handleChange} placeholder="+91 00000 00000" />
+            </div>
+          </section>
+
+          {/* Section 2: Address */}
+          <section>
+            <div className="flex justify-between items-end mb-6 border-b border-gray-100 pb-3">
+                <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-900 flex items-center gap-3">
+                  <span className="w-6 h-[1px] bg-amber-600"></span> Site Address
+                </h3>
+                <button type="button" onClick={detectLocation} disabled={locLoading} className="text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 text-amber-600 hover:text-gray-900 transition-colors bg-amber-50 px-3 py-1.5 rounded-lg">
+                    {locLoading ? <Loader2 className="animate-spin w-3 h-3"/> : <Navigation className="w-3 h-3"/>}
+                    Auto Detect
+                </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="md:col-span-3 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-500">Street Address *</label>
+                  <textarea name="addressLine" required value={addressLine} onChange={handleChange} placeholder="House/Flat No, Street, Landmark" rows="2" className="w-full bg-white border border-gray-200 text-gray-900 text-sm px-4 py-3.5 rounded-xl outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all resize-none placeholder:text-gray-400 shadow-sm" />
+              </div>
+              <CleanInput label="City" name="city" value={city} onChange={handleChange} placeholder="City name" className="md:col-span-1" />
+              <CleanInput label="State" name="stateCode" value={stateCode} onChange={handleChange} placeholder="State name" className="md:col-span-1" />
+              <CleanInput label="Pincode" name="pincode" value={pincode} onChange={handleChange} placeholder="000000" className="md:col-span-1" />
+            </div>
+          </section>
+
+          {/* Section 3: Schedule */}
+          <section>
+            <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-900 mb-6 border-b border-gray-100 pb-3 flex items-center gap-3">
+              <span className="w-6 h-[1px] bg-amber-600"></span> Schedule
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+              <CleanInput type="date" label="Preferred Date" name="scheduledDate" value={scheduledDate} onChange={handleChange} min={new Date().toISOString().split('T')[0]} />
+              <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-500">Preferred Time *</label>
+                  <select name="scheduledTime" required value={scheduledTime} onChange={handleChange} className="w-full bg-white border border-gray-200 text-gray-900 text-sm px-4 py-3.5 rounded-xl outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer shadow-sm">
+                     <option value="" disabled>Select a slot</option>
+                     <option value="Morning (10 AM - 1 PM)">Morning (10 AM - 1 PM)</option>
+                     <option value="Afternoon (1 PM - 4 PM)">Afternoon (1 PM - 4 PM)</option>
+                     <option value="Evening (4 PM - 7 PM)">Evening (4 PM - 7 PM)</option>
+                  </select>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-500">Special Instructions (Optional)</label>
+                <textarea name="message" value={message} onChange={handleChange} placeholder="Any specific requirements?" rows="2" className="w-full bg-white border border-gray-200 text-gray-900 text-sm px-4 py-3.5 rounded-xl outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all resize-none placeholder:text-gray-400 shadow-sm" />
+            </div>
+          </section>
+
+          {/* Mobile Submit */}
+          <div className="block lg:hidden pt-4">
+             <button type="submit" disabled={loading} className="w-full bg-gray-900 text-white h-16 rounded-xl text-[11px] font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-colors disabled:opacity-70 shadow-lg">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin"/> : "Confirm Request"}
+             </button>
+          </div>
+        </form>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* RIGHT SIDE: CART SUMMARY (Light Gray Background) */}
+      <div className="w-full lg:w-[45%] xl:w-[40%] bg-[#F5F5F7] border-l border-gray-200 px-6 lg:px-12 xl:px-16 pt-12 lg:pt-32 pb-20 order-1 lg:order-2">
+         <div className="lg:sticky lg:top-32">
             
-            {/* LEFT: SUMMARY */}
-            <div className="lg:col-span-1 h-fit">
-                <div className="bg-[#121212] text-white p-6 rounded-2xl shadow-2xl sticky top-28">
-                    <h3 className="text-gray-400 uppercase text-xs font-bold tracking-widest mb-6">Selected Interest</h3>
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 mb-6">
-                        {state.cart.map((item, i) => {
-                            const product = item.product || item;
-                            
-                            // Image Logic
-                            let displayImg = product.image;
-                            if (Array.isArray(displayImg)) {
-                                displayImg = displayImg.length > 0 ? displayImg[0] : "";
-                            }
-                            const finalImg = displayImg && displayImg.startsWith('http') 
-                                ? displayImg 
-                                : `${CLOUDINARY_BASE_URL}${displayImg}.jpg`;
+            <div className="flex justify-between items-end mb-8 border-b border-gray-200 pb-6">
+                <h3 className="text-2xl font-serif text-gray-900">Portfolio</h3>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 bg-white px-3 py-1 border border-gray-200 rounded-lg shadow-sm">{state.cart.length} Items</span>
+            </div>
 
-                            return (
-                                <div key={i} className="flex gap-4 border-b border-gray-800 pb-4 last:border-0">
-                                    {/* ✅ Black Box Image Visibility Fix */}
-                                    <img 
-                                        src={finalImg} 
-                                        className="w-12 h-12 object-cover rounded-md bg-white" 
-                                        alt="" 
-                                        onError={(e) => e.target.src="https://placehold.co/100?text=No+Img"}
-                                    />
-                                    <div>
-                                        <p className="text-sm font-medium line-clamp-1">{product.name}</p>
-                                        <p className="text-amber-500 text-xs mt-1">Qty: {item.quantity}</p>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="flex justify-between items-center pt-4 border-t border-gray-700">
-                        <span className="text-gray-400 text-sm">Est. Budget</span>
-                        <span className="text-xl font-bold">₹{state.total?.toLocaleString()}</span>
-                    </div>
+            {/* Scrollable Products List */}
+            <div className="space-y-4 mb-10 max-h-[35vh] overflow-y-auto pr-2 custom-scrollbar">
+               {state.cart.map((item, idx) => {
+                  const product = item.product || item;
+                  const finalImg = getFinalImageUrl(product);
+
+                  return (
+                      <div key={idx} className="flex gap-4 items-center bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm">
+                          <div className="w-16 h-16 bg-[#F5F5F7] rounded-xl p-2 flex-shrink-0">
+                             <img src={finalImg} className="w-full h-full object-contain mix-blend-multiply" alt={product.name} />
+                          </div>
+                          <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900 line-clamp-1">{product.name}</p>
+                              <div className="flex justify-between items-center mt-1.5">
+                                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Qty: {item.quantity}</p>
+                                  <p className="text-sm font-bold text-gray-900">₹{(product.price * item.quantity).toLocaleString()}</p>
+                              </div>
+                          </div>
+                      </div>
+                  )
+               })}
+            </div>
+
+            {/* Total & Action */}
+            <div className="pt-6 border-t border-gray-200">
+                <div className="flex justify-between items-end mb-8">
+                    <span className="text-gray-500 text-[10px] font-bold uppercase tracking-[0.2em]">Est. Value</span>
+                    <span className="text-4xl font-serif text-gray-900 tracking-tight">₹{state.total?.toLocaleString()}</span>
+                </div>
+                
+                <button onClick={handleSubmit} disabled={loading} className="hidden lg:flex w-full bg-gray-900 hover:bg-amber-600 text-white h-16 rounded-xl text-[11px] font-bold uppercase tracking-[0.2em] items-center justify-center gap-3 transition-all duration-300 shadow-[0_10px_20px_rgba(0,0,0,0.05)] hover:-translate-y-1 disabled:opacity-70">
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin"/> : "Confirm Request"}
+                </button>
+
+                <div className="mt-8 flex justify-center items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    <ShieldCheck className="w-3.5 h-3.5"/> 256-bit Secure Encryption
                 </div>
             </div>
 
-            {/* RIGHT: PREMIUM FORM */}
-            <div className="lg:col-span-2">
-                <form onSubmit={handleSubmit} className="bg-white p-8 md:p-10 rounded-2xl shadow-sm border border-gray-100">
-                    
-                    {/* SECTION 1: Personal Details */}
-                    <div className="mb-10">
-                        <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                           <span className="bg-amber-100 text-amber-700 p-1.5 rounded-lg"><User size={18}/></span> 
-                           Contact Information
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">Name</label>
-                                <input required name="name" value={formData.name} onChange={handleChange}
-                                    className="w-full p-3 bg-gray-50 rounded-lg border-transparent focus:border-amber-500 focus:bg-white border transition-all outline-none" placeholder="Your Name" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">Phone</label>
-                                <input required type="tel" name="phone" value={formData.phone} onChange={handleChange}
-                                    className="w-full p-3 bg-gray-50 rounded-lg border-transparent focus:border-amber-500 focus:bg-white border transition-all outline-none" placeholder="+91..." />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* SECTION 2: Location */}
-                    <div className="mb-10">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold flex items-center gap-2">
-                                <span className="bg-blue-100 text-blue-700 p-1.5 rounded-lg"><MapPin size={18}/></span> 
-                                Site Address
-                            </h3>
-                            <button type="button" onClick={detectLocation} disabled={locLoading}
-                                className="text-xs font-bold flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors">
-                                {locLoading ? <Loader2 className="animate-spin w-4 h-4"/> : <Navigation className="w-3 h-3"/>}
-                                {locLoading ? "Detecting..." : "Auto Detect Location"}
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                            <div className="space-y-1 md:col-span-2">
-                                <label className="text-xs font-bold text-gray-500 uppercase">Street Address / Landmark</label>
-                                <input required name="addressLine" value={formData.addressLine} onChange={handleChange}
-                                    className="w-full p-3 bg-gray-50 rounded-lg border-transparent focus:border-amber-500 focus:bg-white border transition-all outline-none" placeholder="Flat No, Tower, Street..." />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">City</label>
-                                <input required name="city" value={formData.city} onChange={handleChange}
-                                    className="w-full p-3 bg-gray-50 rounded-lg border-transparent focus:border-amber-500 focus:bg-white border transition-all outline-none" placeholder="City" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">Pincode</label>
-                                <input required name="pincode" value={formData.pincode} onChange={handleChange}
-                                    className="w-full p-3 bg-gray-50 rounded-lg border-transparent focus:border-amber-500 focus:bg-white border transition-all outline-none" placeholder="000000" />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* SECTION 3: Scheduling */}
-                    <div className="mb-8">
-                        <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                            <span className="bg-green-100 text-green-700 p-1.5 rounded-lg"><Calendar size={18}/></span> 
-                            Preferred Slot
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">Date</label>
-                                <input required type="date" name="scheduledDate" value={formData.scheduledDate} onChange={handleChange}
-                                    min={new Date().toISOString().split('T')[0]} 
-                                    className="w-full p-3 bg-gray-50 rounded-lg border-transparent focus:border-amber-500 focus:bg-white border transition-all outline-none cursor-pointer" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">Time Slot</label>
-                                <select required name="scheduledTime" value={formData.scheduledTime} onChange={handleChange}
-                                    className="w-full p-3 bg-gray-50 rounded-lg border-transparent focus:border-amber-500 focus:bg-white border transition-all outline-none cursor-pointer appearance-none">
-                                    <option value="" disabled>Select Time</option>
-                                    <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
-                                    <option value="12:00 PM - 02:00 PM">12:00 PM - 02:00 PM</option>
-                                    <option value="02:00 PM - 04:00 PM">02:00 PM - 04:00 PM</option>
-                                    <option value="04:00 PM - 06:00 PM">04:00 PM - 06:00 PM</option>
-                                    <option value="06:00 PM - 08:00 PM">06:00 PM - 08:00 PM</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                             <textarea name="message" rows="2" value={formData.message} onChange={handleChange}
-                                className="w-full p-3 bg-gray-50 rounded-lg border-transparent focus:border-amber-500 focus:bg-white border transition-all outline-none resize-none text-sm" 
-                                placeholder="Any specific instructions for our team? (Optional)" />
-                        </div>
-                    </div>
-
-                    {/* Submit Button */}
-                    <button type="submit" disabled={loading}
-                        className="w-full bg-black text-white h-16 rounded-xl font-bold uppercase tracking-widest hover:bg-gray-900 transition-all shadow-xl flex items-center justify-center gap-3 disabled:bg-gray-400">
-                        {loading ? <Loader2 className="animate-spin"/> : "Confirm Site Visit"}
-                    </button>
-
-                </form>
-            </div>
+         </div>
       </div>
+
     </div>
   );
 }

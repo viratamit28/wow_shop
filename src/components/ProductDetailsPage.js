@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios'; 
 import { 
   Star, Share2, Plus, Minus, Box, FileText, 
-  Truck, ShieldCheck, RotateCcw, CheckCircle, 
-  ChevronRight, Tag, CreditCard, Info
+  Truck, ShieldCheck, RotateCcw, CheckCircle, Loader2,
+  ChevronRight, ChevronLeft, ArrowRight, Home
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AuthContext } from "../context/AuthContext";
 
-// 🔥 CLOUDINARY CONFIG
-const CLOUDINARY_BASE_URL = "https://res.cloudinary.com/dcljdkqer/image/upload/";
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
 
 export default function ProductDetailsPage() {
   const { id } = useParams();
@@ -22,35 +22,46 @@ export default function ProductDetailsPage() {
   const [mainImage, setMainImage] = useState(""); 
   const [quantity, setQuantity] = useState(1); 
   const [adding, setAdding] = useState(false); 
-  const [activeTab, setActiveTab] = useState("specs");
 
-  // --- 1. FETCH DATA ---
+  // 🔥 NEW STATES FOR ZOOM EFFECT
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+
+  const sliderRef = useRef(null);
+
+  const categories = [
+    { name: "Ovens", dbCategory: "ovens", dbType: "Ovens", image: "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?q=80&w=600&auto=format&fit=crop" },
+    { name: "Hobs", dbCategory: "hobs", dbType: "Hobs", image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=600&auto=format&fit=crop" },
+    { name: "Chimneys", dbCategory: "chimneys", dbType: "Chimneys", image: "https://images.unsplash.com/photo-1615873968403-89e068629265?q=80&w=600&auto=format&fit=crop" },
+    { name: "Refrigerators", dbCategory: "refrigerators", dbType: "Refrigerators", image: "https://images.unsplash.com/photo-1571175443880-49e1d58b95da?q=80&w=600&auto=format&fit=crop" },
+    { name: "Dishwashers", dbCategory: "dishwashers", dbType: "Dishwashers", image: "https://images.unsplash.com/photo-1581622558663-b2e33377dfb2?q=80&w=600&auto=format&fit=crop" }
+  ];
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        window.scrollTo(0,0);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
 
-        const res = await axios.get(`http://localhost:5000/api/products/${id}`);
+        const res = await axios.get(`${BACKEND_URL}/api/products/${id}`);
         const data = res.data;
         setProduct(data);
         
-        // 🔥 FIX 1: Handle Main Image (Array vs String)
         let initialImg = data.image;
         if (Array.isArray(initialImg)) {
             initialImg = initialImg.length > 0 ? initialImg[0] : "";
         }
         
-        // Cloudinary Check
         if (initialImg && !initialImg.startsWith('http')) {
-            initialImg = `${CLOUDINARY_BASE_URL}${initialImg}.jpg`;
+            const cleanPath = initialImg.replace(/\\/g, '/');
+            initialImg = `${BACKEND_URL}/${cleanPath}`;
         }
         
         setMainImage(initialImg);
 
         if (data.category) {
-            const relatedRes = await axios.get(`http://localhost:5000/api/products?category=${data.category}`);
-            setSimilarProducts(relatedRes.data.filter(p => p._id !== id).slice(0, 4));
+            const relatedRes = await axios.get(`${BACKEND_URL}/api/products?category=${encodeURIComponent(data.category)}`);
+            setSimilarProducts(relatedRes.data.filter(p => p._id !== id));
         }
       } catch (err) {
         console.error("Error fetching details", err);
@@ -61,254 +72,274 @@ export default function ProductDetailsPage() {
     fetchData();
   }, [id]);
 
-  // --- 2. ADD TO SELECTION LOGIC ---
   const handleAddToSelection = async () => {
-    if (!token) return alert("Please Login to create your project list!");
+    if (!token) return alert("Please Login to create your project portfolio!");
     
     setAdding(true);
     try {
-      await axios.post('http://localhost:5000/api/cart/add', 
+      await axios.post(`${BACKEND_URL}/api/cart/add`, 
         { productId: product._id, quantity: quantity }, 
         { headers: { 'auth-token': token } }
       );
       refreshCart(); 
-      alert(`${quantity} x ${product.name} added to your Inquiry List!`);
     } catch (err) { 
-        alert("Could not add to list. Try again."); 
+        alert("Could not add to portfolio. Try again."); 
     } finally {
         setAdding(false);
     }
   };
 
-  const calculateDiscount = (price) => {
-    const fakeMRP = price * 1.25; 
-    return { mrp: Math.round(fakeMRP), off: 25 };
+  const scrollSlider = (direction) => {
+    if (sliderRef.current) {
+        const { scrollLeft, clientWidth } = sliderRef.current;
+        const scrollAmount = clientWidth * 0.8;
+        sliderRef.current.scrollTo({
+            left: direction === 'left' ? scrollLeft - scrollAmount : scrollLeft + scrollAmount,
+            behavior: 'smooth'
+        });
+    }
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50 text-gray-400 font-medium tracking-widest animate-pulse">LOADING PREMIUM PRODUCTS...</div>;
-  if (!product) return <div className="h-screen flex items-center justify-center">Product Not Found</div>;
+  // 🔥 ZOOM LOGIC: Mouse ke hisaab se image ko move karna
+  const handleMouseMove = (e) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setZoomPos({ x, y });
+  };
 
-  const { mrp, off } = calculateDiscount(product.price);
+  if (loading) return (
+    <div className="h-screen flex flex-col items-center justify-center bg-[#F5F5F7]">
+        <Loader2 className="w-10 h-10 text-amber-600 animate-spin mb-4" strokeWidth={2}/>
+        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.3em] animate-pulse">Curating Specifications...</span>
+    </div>
+  );
+  
+  if (!product) return <div className="h-screen flex items-center justify-center text-gray-500 tracking-widest uppercase font-bold">Product Not Found</div>;
 
-  // 🔥 FIX 2: Prepare Gallery Images (Array handling)
-  // Agar product.image array hai to use karo, nahi to array bana lo
   const galleryImages = Array.isArray(product.image) ? product.image : [product.image];
+  const customEase = [0.16, 1, 0.3, 1];
 
   return (
-    <div className="min-h-screen bg-white font-sans pt-24 pb-10">
+    <div className="min-h-screen bg-white font-sans pt-28 pb-28 md:pb-16 selection:bg-amber-500 selection:text-white">
       
-      {/* 1. BREADCRUMBS */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 mb-4">
-        <div className="flex items-center text-xs text-gray-500 gap-2">
-            <span className="cursor-pointer hover:text-black" onClick={() => navigate('/')}>Home</span>
-            <ChevronRight className="w-3 h-3" />
-            <span className="cursor-pointer hover:text-black" onClick={() => navigate(-1)}>{product.category || 'Shop'}</span>
-            <ChevronRight className="w-3 h-3" />
-            <span className="font-semibold text-gray-900 truncate max-w-[200px]">{product.name}</span>
-        </div>
+      {/* BREADCRUMBS */}
+      <div className="max-w-7xl mx-auto px-6 mb-8">
+         <nav className="flex items-center gap-2 text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-gray-400">
+            <button onClick={() => navigate('/')} className="hover:text-amber-600 transition-colors flex items-center gap-1"><Home className="w-3 h-3"/> Home</button>
+            <span>/</span>
+            <button 
+              onClick={() => navigate(`/products?category=${encodeURIComponent(product.category)}`)} 
+              className="hover:text-amber-600 transition-colors"
+            >
+              {product.category}
+            </button>
+            <span>/</span>
+            <span className="text-gray-900 line-clamp-1">{product.model || "Details"}</span>
+         </nav>
       </div>
 
-      {/* MAIN LAYOUT */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 lg:grid-cols-12 gap-8 mb-20">
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 mb-24 items-start">
         
-        {/* LEFT COLUMN: IMAGE GALLERY */}
-        <div className="lg:col-span-5 space-y-4 sticky top-24 h-fit">
-            <div className="relative aspect-square bg-white border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center group cursor-zoom-in">
+        {/* LEFT COLUMN: LUXURY DYNAMIC IMAGE GALLERY */}
+        <div className="lg:col-span-7 space-y-6 lg:sticky lg:top-28">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, ease: customEase }}
+              // 🔥 FIX 1: Auto Width & Height, Container content ke hisaab se adjust hoga
+              className="relative w-full md:w-fit mx-auto bg-[#F5F5F7] rounded-3xl overflow-hidden flex items-center justify-center cursor-crosshair border border-gray-100/50 shadow-sm"
+              onMouseMove={handleMouseMove}
+              onMouseEnter={() => setIsZoomed(true)}
+              onMouseLeave={() => setIsZoomed(false)}
+            >
                 {product.tag && (
-                    <span className="absolute top-4 left-4 bg-red-600 text-white text-[10px] font-bold px-3 py-1 uppercase tracking-widest z-10 rounded-sm shadow-sm">
+                    <span className="absolute top-6 left-6 bg-gray-900 text-white text-[9px] font-bold px-4 py-1.5 uppercase tracking-widest z-20 rounded shadow-md">
                         {product.tag}
                     </span>
                 )}
-                <Share2 className="absolute top-4 right-4 text-gray-400 hover:text-black cursor-pointer z-10 bg-white p-1.5 rounded-full shadow-sm w-8 h-8" />
                 
-                <img 
-                    src={mainImage} 
-                    alt={product.name} 
-                    className="max-h-[90%] max-w-[90%] object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-125" 
-                />
-            </div>
+                <AnimatePresence mode="wait">
+                    {/* 🔥 FIX 2: Custom Zoom Effect Apply Kiya */}
+                    <motion.img 
+                        key={mainImage}
+                        initial={{ opacity: 0, filter: "blur(4px)" }} 
+                        animate={{ opacity: 1, filter: "blur(0px)" }} 
+                        exit={{ opacity: 0 }} 
+                        transition={{ duration: 0.4 }}
+                        src={mainImage} 
+                        alt={product.name} 
+                        // Image ka size maintain karne ke liye mix-blend aur max-height lagaya hai
+                        className="w-auto h-auto max-w-full max-h-[70vh] object-contain mix-blend-multiply transition-transform duration-200 ease-out p-8" 
+                        style={{
+                            transform: isZoomed ? 'scale(2.5)' : 'scale(1)',
+                            transformOrigin: isZoomed ? `${zoomPos.x}% ${zoomPos.y}%` : 'center center'
+                        }}
+                    />
+                </AnimatePresence>
+            </motion.div>
             
-            {/* 🔥 UPDATED THUMBNAILS: Real Images from Array */}
-            <div className="flex gap-3 overflow-x-auto py-2 px-1 justify-center lg:justify-start">
-                {galleryImages.map((img, i) => {
-                    // Har thumbnail ka URL fix karo
-                    const thumbUrl = img && img.startsWith('http') ? img : `${CLOUDINARY_BASE_URL}${img}.jpg`;
-                    
-                    return (
-                        <div 
-                            key={i} 
-                            onMouseEnter={() => setMainImage(thumbUrl)}
-                            className={`w-16 h-16 rounded-lg border cursor-pointer p-1 bg-white ${mainImage === thumbUrl ? "border-amber-500 ring-1 ring-amber-500" : "border-gray-200 hover:border-gray-400"}`}
-                        >
-                            <img src={thumbUrl} className="w-full h-full object-contain" alt={`thumb-${i}`}/>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* ACTION BUTTONS */}
-            <div className="hidden lg:flex gap-4 mt-6">
-                 <button 
-                    onClick={handleAddToSelection}
-                    disabled={adding}
-                    className="flex-1 bg-amber-400 hover:bg-amber-500 text-black h-12 rounded-sm font-bold uppercase tracking-wide text-sm flex items-center justify-center gap-2 shadow-sm transition-colors"
-                >
-                    {adding ? "Adding..." : <><FileText className="w-4 h-4" /> Add to Inquiry List</>}
-                </button>
-                <button 
-                    onClick={() => navigate(`/kitchen-layout/default?product=${product._id}`)}
-                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white h-12 rounded-sm font-bold uppercase tracking-wide text-sm flex items-center justify-center gap-2 shadow-sm transition-colors"
-                >
-                    <Box className="w-4 h-4" /> 3D Visualize
-                </button>
-            </div>
+            {/* THUMBNAILS */}
+            {galleryImages.length > 1 && (
+              <div className="flex gap-4 overflow-x-auto py-2 px-1 hide-scrollbar justify-center">
+                  {galleryImages.map((img, i) => {
+                      const cleanPath = typeof img === 'string' ? img.replace(/\\/g, '/') : '';
+                      const thumbUrl = img && img.startsWith('http') ? img : `${BACKEND_URL}/${cleanPath}`;
+                      const isActive = mainImage === thumbUrl;
+                      
+                      return (
+                          <button 
+                              key={i} 
+                              onClick={() => setMainImage(thumbUrl)}
+                              className={`relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 transition-all duration-300 bg-[#F5F5F7] ${isActive ? "ring-2 ring-amber-500 ring-offset-2 scale-105" : "border border-gray-100 hover:border-gray-300 opacity-60 hover:opacity-100"}`}
+                          >
+                              <img src={thumbUrl} className="w-full h-full object-contain p-2 mix-blend-multiply" alt={`thumb-${i}`}/>
+                          </button>
+                      );
+                  })}
+              </div>
+            )}
         </div>
 
-        {/* RIGHT COLUMN: DETAILS */}
-        <div className="lg:col-span-7">
+        {/* RIGHT COLUMN: PRODUCT INFO */}
+        <div className="lg:col-span-5 flex flex-col pt-2">
             
-            <div className="mb-2">
-                <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">{product.brand}</span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-medium text-gray-900 mb-2 leading-tight">{product.name}</h1>
-            
-            <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center bg-green-700 text-white px-2 py-0.5 rounded-[4px] text-xs font-bold gap-1">
-                    {product.rating || 4.5} <Star className="w-3 h-3 fill-white" />
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: customEase }}>
+                <div className="flex justify-between items-start mb-4">
+                  <span className="text-amber-600 text-[10px] font-bold uppercase tracking-[0.3em]">{product.brand || "Premium Selection"}</span>
+                  <span className="bg-gray-100 text-gray-500 text-[9px] px-2 py-1 rounded font-bold tracking-widest uppercase">Model: {product.model || "N/A"}</span>
                 </div>
-                <span className="text-gray-500 text-sm font-medium">1,240 Ratings & 89 Reviews</span>
-            </div>
+                
+                <h1 className="text-4xl md:text-5xl font-serif text-gray-900 mb-6 leading-[1.15] tracking-tight">{product.name}</h1>
+                
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="flex items-center bg-gray-900 text-white px-3 py-1.5 rounded text-xs font-bold gap-1.5 shadow-sm">
+                        {product.rating || 5.0} <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    </div>
+                    <span className="text-gray-400 text-[11px] font-medium uppercase tracking-widest border-b border-transparent">Verified Product</span>
+                </div>
+            </motion.div>
 
             {/* PRICE SECTION */}
-            <div className="mb-6">
-                <div className="flex items-end gap-3">
-                    <span className="text-3xl font-medium text-black">₹{product.price.toLocaleString()}</span>
-                    <span className="text-gray-500 line-through text-sm mb-1.5">₹{mrp.toLocaleString()}</span>
-                    <span className="text-green-700 font-bold text-sm mb-1.5">{off}% off</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Inclusive of all taxes</p>
-                <p className="text-sm text-gray-900 mt-1 font-medium flex items-center gap-1">
-                    <CreditCard className="w-4 h-4 text-gray-600"/> EMI starts at ₹{(product.price/12).toFixed(0)}/mo. 
-                    <span className="text-blue-600 cursor-pointer">View Plans</span>
-                </p>
-            </div>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1, ease: customEase }} className="mb-8">
+                <span className="text-5xl lg:text-5xl font-serif font-medium text-gray-900 leading-none tracking-tight">₹{product.price?.toLocaleString()}</span>
+                <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-4 mb-6">Taxes Included • Subject to site feasibility</p>
+            </motion.div>
 
-            {/* OFFERS */}
-            <div className="mb-6">
-                <h4 className="font-bold text-sm mb-2 text-gray-900">Available Offers</h4>
-                <div className="space-y-2">
-                    <div className="flex items-start gap-2 text-sm text-gray-700">
-                        <Tag className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                        <span><span className="font-bold">Bank Offer:</span> 5% Unlimited Cashback on WowShop Axis Bank Credit Card.</span>
+            {/* 🔥 FIX 3: TECHNICAL SPECS UPFRONT (Directly visible before Add To Cart) */}
+            {product.specs && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2, ease: customEase }} className="mb-10 bg-[#FAFAFA] p-6 rounded-2xl border border-gray-100/80">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-900 mb-5 border-b border-gray-200 pb-3">Key Specifications</h3>
+                    <div className="grid grid-cols-2 gap-y-5 gap-x-6">
+                        {Object.entries(product.specs).map(([key, value], idx) => (
+                            <div key={idx} className="flex flex-col">
+                                <span className="text-gray-400 text-[9px] font-bold uppercase tracking-widest block mb-1">{key}</span>
+                                <span className="text-gray-900 text-sm font-semibold">{value}</span>
+                            </div>
+                        ))}
                     </div>
-                    <div className="flex items-start gap-2 text-sm text-gray-700">
-                        <Tag className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                        <span><span className="font-bold">Partner Offer:</span> Sign up for GST Invoice and save up to 18%.</span>
+                </motion.div>
+            )}
+
+            {/* QUANTITY & ACTIONS */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3, ease: customEase }} className="mb-12 border-t border-gray-100 pt-8">
+                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="flex items-center bg-gray-50 border border-gray-100 rounded-xl p-1 shadow-inner h-14 w-full sm:w-auto">
+                        <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-12 h-full flex items-center justify-center bg-white rounded-lg shadow-sm text-gray-600 hover:text-black transition-colors"><Minus className="w-4 h-4"/></button>
+                        <span className="w-14 text-center font-serif text-xl font-medium text-gray-900">{quantity}</span>
+                        <button onClick={() => setQuantity(q => q + 1)} className="w-12 h-full flex items-center justify-center bg-white rounded-lg shadow-sm text-gray-600 hover:text-black transition-colors"><Plus className="w-4 h-4"/></button>
                     </div>
-                </div>
-            </div>
-
-            {/* DELIVERY & SERVICES */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 border-y border-gray-100 py-4">
-                <div className="flex flex-col items-center text-center gap-2">
-                    <div className="bg-blue-50 p-2 rounded-full text-blue-600"><Truck className="w-5 h-5"/></div>
-                    <span className="text-xs font-semibold text-gray-700">Free Delivery</span>
-                </div>
-                <div className="flex flex-col items-center text-center gap-2">
-                    <div className="bg-blue-50 p-2 rounded-full text-blue-600"><ShieldCheck className="w-5 h-5"/></div>
-                    <span className="text-xs font-semibold text-gray-700">1 Year Warranty</span>
-                </div>
-                <div className="flex flex-col items-center text-center gap-2">
-                    <div className="bg-blue-50 p-2 rounded-full text-blue-600"><RotateCcw className="w-5 h-5"/></div>
-                    <span className="text-xs font-semibold text-gray-700">7 Days Replacement</span>
-                </div>
-                <div className="flex flex-col items-center text-center gap-2">
-                    <div className="bg-blue-50 p-2 rounded-full text-blue-600"><CheckCircle className="w-5 h-5"/></div>
-                    <span className="text-xs font-semibold text-gray-700">Installation Included</span>
-                </div>
-            </div>
-
-            {/* SELECTION CONTROLS */}
-            <div className="flex items-center gap-6 mb-8">
-                 <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">Quantity</label>
-                    <div className="flex items-center border border-gray-300 rounded-md">
-                        <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="px-3 py-1.5 hover:bg-gray-100 text-gray-600"><Minus className="w-4 h-4"/></button>
-                        <span className="w-10 text-center font-bold text-sm">{quantity}</span>
-                        <button onClick={() => setQuantity(q => q + 1)} className="px-3 py-1.5 hover:bg-gray-100 text-gray-600"><Plus className="w-4 h-4"/></button>
+                    
+                    <div className="flex-1 w-full flex gap-3">
+                        <button 
+                            onClick={handleAddToSelection}
+                            disabled={adding}
+                            className="flex-1 bg-gray-900 hover:bg-amber-600 text-white h-14 rounded-xl font-bold uppercase tracking-[0.15em] text-[10px] md:text-[11px] flex items-center justify-center gap-3 shadow-[0_10px_20px_rgba(0,0,0,0.1)] transition-all duration-500 hover:-translate-y-1 disabled:opacity-70 disabled:hover:translate-y-0"
+                        >
+                            {adding ? <Loader2 className="w-4 h-4 animate-spin"/> : <FileText className="w-4 h-4" />} 
+                            {adding ? "Adding..." : "Add to Portfolio"}
+                        </button>
                     </div>
                  </div>
                  
-                 <div className="flex-1">
-                    <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md flex gap-2 items-start">
-                        <Info className="w-4 h-4 text-yellow-700 mt-0.5 flex-shrink-0" />
-                        <p className="text-xs text-yellow-800">
-                            <strong>Bulk Order?</strong> Add to Inquiry List. Our experts will contact you for the best B2B pricing.
-                        </p>
-                    </div>
-                 </div>
-            </div>
+                 <button 
+                    onClick={() => navigate(`/kitchen-layout/default?product=${product._id}`)}
+                    className="w-full mt-4 bg-white border border-gray-200 text-gray-900 hover:border-gray-900 hover:bg-gray-50 h-14 rounded-xl font-bold uppercase tracking-[0.15em] text-[10px] md:text-[11px] flex items-center justify-center gap-3 transition-all duration-300 shadow-sm hover:shadow-md"
+                 >
+                    <Box className="w-4 h-4 text-amber-600" /> 3D Virtual Try-On
+                 </button>
+            </motion.div>
 
-            {/* TABS: DESCRIPTION & SPECS */}
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="flex border-b border-gray-200 bg-gray-50">
-                    <button 
-                        onClick={() => setActiveTab('specs')}
-                        className={`flex-1 py-3 text-sm font-bold uppercase tracking-wide ${activeTab === 'specs' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Specifications
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('desc')}
-                        className={`flex-1 py-3 text-sm font-bold uppercase tracking-wide ${activeTab === 'desc' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Description
-                    </button>
-                </div>
-                
-                <div className="p-6 bg-white min-h-[200px]">
-                    {activeTab === 'specs' && product.specs ? (
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
-                            {Object.entries(product.specs).map(([key, value], idx) => (
-                                <div key={idx} className="flex border-b border-gray-100 pb-2">
-                                    <span className="w-1/2 text-gray-500 text-sm font-medium capitalize">{key}</span>
-                                    <span className="w-1/2 text-gray-900 text-sm font-semibold">{value}</span>
-                                </div>
-                            ))}
-                         </div>
-                    ) : (
-                        <p className="text-gray-600 leading-relaxed text-sm">
-                            {product.description || "No description available for this premium product."}
-                        </p>
-                    )}
-                </div>
-            </div>
+            {/* DESCRIPTION SECTION (Permanent visibility instead of Tabs) */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4, ease: customEase }} className="mb-12">
+               <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-900 mb-6">The Details</h3>
+               <p className="text-gray-600 leading-relaxed text-[14px] font-light mb-6">
+                   {product.description || "Discover unparalleled luxury and precision with this masterpiece. Engineered to elevate your culinary experience, blending seamless design with cutting-edge technology."}
+               </p>
+               <ul className="space-y-4">
+                   <li className="flex items-start gap-3">
+                       <CheckCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                       <span className="text-[13px] text-gray-700">Premium build quality ensuring longevity and style.</span>
+                   </li>
+                   <li className="flex items-start gap-3">
+                       <CheckCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                       <span className="text-[13px] text-gray-700">Engineered for maximum efficiency and superior performance.</span>
+                   </li>
+               </ul>
+            </motion.div>
+
+            {/* MONOCHROME LUXURY SERVICES */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.5, ease: customEase }} className="grid grid-cols-4 gap-2 md:gap-3 border-t border-gray-100 pt-10">
+                {[
+                  { icon: Truck, text: "White-Glove Delivery" },
+                  { icon: ShieldCheck, text: "Brand Warranty" },
+                  { icon: RotateCcw, text: "7 Days Return" },
+                  { icon: CheckCircle, text: "Pro Installation" }
+                ].map((item, idx) => (
+                  <div key={idx} className="flex flex-col items-center text-center gap-3 group">
+                      <div className="bg-gray-50 border border-gray-100 w-12 h-12 flex items-center justify-center rounded-2xl text-gray-600 group-hover:text-amber-600 group-hover:border-amber-100 transition-colors shadow-sm"><item.icon className="w-5 h-5" strokeWidth={1.5}/></div>
+                      <span className="text-[8px] md:text-[9px] font-bold text-gray-500 uppercase tracking-widest max-w-[80px] leading-relaxed group-hover:text-gray-900 transition-colors">{item.text}</span>
+                  </div>
+                ))}
+            </motion.div>
 
         </div>
       </div>
       
-      {/* 7. SIMILAR PRODUCTS SLIDER */}
+      {/* SIMILAR PRODUCTS */}
       {similarProducts.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 md:px-6 pb-20 border-t border-gray-200 pt-10">
-             <h3 className="text-xl font-bold text-gray-900 mb-6">Similar Products You Might Like</h3>
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {similarProducts.map((item) => {
-                    // 🔥 FIX 3: Similar Product Image Fix
+        <div className="max-w-7xl mx-auto px-6 pb-20 border-t border-gray-100 pt-24">
+             <div className="flex items-center justify-between mb-12">
+                 <h3 className="text-3xl md:text-4xl font-serif text-gray-900">Complementary Pieces</h3>
+                 <div className="hidden md:flex items-center gap-3">
+                     <button onClick={() => scrollSlider('left')} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-900 hover:text-white transition-colors">
+                         <ChevronLeft className="w-5 h-5" />
+                     </button>
+                     <button onClick={() => scrollSlider('right')} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-900 hover:text-white transition-colors">
+                         <ChevronRight className="w-5 h-5" />
+                     </button>
+                 </div>
+             </div>
+             
+             <div ref={sliderRef} className="flex overflow-x-auto gap-6 pb-8 hide-scrollbar scroll-smooth snap-x snap-mandatory">
+                {similarProducts.map((item, idx) => {
                     let simImg = item.image;
-                    if (Array.isArray(simImg)) {
-                        simImg = simImg.length > 0 ? simImg[0] : "";
-                    }
-                    const similarImgUrl = simImg && simImg.startsWith('http') ? simImg : `${CLOUDINARY_BASE_URL}${simImg}.jpg`;
+                    if (Array.isArray(simImg)) simImg = simImg.length > 0 ? simImg[0] : "";
+                    
+                    const cleanPath = typeof simImg === 'string' ? simImg.replace(/\\/g, '/') : '';
+                    const similarImgUrl = simImg && simImg.startsWith('http') ? simImg : `${BACKEND_URL}/${cleanPath}`;
                     
                     return (
-                        <div key={item._id} onClick={() => navigate(`/product-details/${item._id}`)} className="cursor-pointer border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow bg-white">
-                            <div className="h-40 mb-3 flex items-center justify-center">
-                                <img src={similarImgUrl} alt={item.name} className="max-h-full max-w-full object-contain mix-blend-multiply"/>
+                        <div 
+                            key={item._id} 
+                            onClick={() => navigate(`/product-details/${item._id}`)} 
+                            className="min-w-[280px] md:min-w-[320px] snap-start cursor-pointer border border-gray-100 rounded-3xl p-6 hover:border-amber-300 hover:shadow-2xl transition-all duration-500 bg-[#FAFAFA] group"
+                        >
+                            <div className="h-40 md:h-56 mb-6 flex items-center justify-center">
+                                <img src={similarImgUrl} alt={item.name} className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700"/>
                             </div>
-                            <h4 className="font-medium text-gray-900 text-sm truncate">{item.name}</h4>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="text-sm font-bold text-black">₹{item.price.toLocaleString()}</span>
-                                <span className="text-xs text-green-600 font-bold">20% off</span>
+                            <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 mb-2">{item.brand}</p>
+                            <h4 className="font-bold text-gray-900 text-sm line-clamp-1 group-hover:text-amber-600 transition-colors">{item.name}</h4>
+                            <div className="flex items-end gap-3 mt-4">
+                                <span className="text-lg font-serif font-medium text-gray-900">₹{item.price.toLocaleString()}</span>
                             </div>
                         </div>
                     )
@@ -317,20 +348,55 @@ export default function ProductDetailsPage() {
         </div>
       )}
 
+     {/* EXPLORE COLLECTIONS */}
+      <div className="bg-white border-t border-gray-100 py-24 mt-10">
+          <div className="max-w-7xl mx-auto px-6">
+              <div className="flex flex-col md:flex-row justify-between items-center mb-12">
+                  <h3 className="text-3xl md:text-4xl font-serif text-gray-900">Explore Other Collections</h3>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-400 mt-2 md:mt-0 hidden md:block">Curated for your perfect kitchen</p>
+              </div>
+
+              <div className="flex overflow-x-auto md:grid md:grid-cols-5 gap-4 md:gap-6 pb-8 hide-scrollbar snap-x snap-mandatory">
+                  {categories.map((cat, idx) => (
+                      <motion.div 
+                          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: idx * 0.1, ease: [0.16, 1, 0.3, 1] }}
+                          key={cat.dbCategory} 
+                          onClick={() => navigate(`/products?category=${encodeURIComponent(cat.dbCategory)}&type=${encodeURIComponent(cat.dbType)}`)}
+                          className="min-w-[240px] md:min-w-0 snap-start relative aspect-[4/5] rounded-3xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-100"
+                      >
+                          <img src={cat.image} alt={cat.name} className="w-full h-full object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-110" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-500" />
+                          <div className="absolute inset-0 p-6 flex flex-col justify-end">
+                              <span className="text-amber-500 text-[9px] font-bold uppercase tracking-[0.2em] mb-2 opacity-0 -translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
+                                  View Collection
+                              </span>
+                              <h4 className="text-white text-2xl font-serif tracking-wide flex items-center justify-between">
+                                  {cat.name}
+                                  <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-x-4 group-hover:translate-x-0 transition-all duration-500">
+                                      <ArrowRight className="w-4 h-4 text-white" />
+                                  </div>
+                              </h4>
+                          </div>
+                      </motion.div>
+                  ))}
+              </div>
+          </div>
+      </div>
+
       {/* MOBILE FLOATING ACTION BAR */}
-      <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-3 shadow-2xl flex gap-3 z-50">
+      <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl border-t border-gray-200 p-4 pb-safe flex gap-3 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
         <button 
             onClick={() => navigate(`/kitchen-layout/default?product=${product._id}`)}
-            className="flex-1 bg-white border border-gray-300 text-black h-12 rounded-sm font-bold uppercase text-xs flex items-center justify-center gap-2"
+            className="flex-none w-14 h-14 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl flex items-center justify-center transition-colors shadow-sm"
         >
-            <Box className="w-4 h-4" /> 3D View
+            <Box className="w-5 h-5" /> 
         </button>
         <button 
-            onClick={handleAddToSelection}
-            disabled={adding}
-            className="flex-1 bg-amber-400 text-black h-12 rounded-sm font-bold uppercase text-xs flex items-center justify-center gap-2"
+            onClick={handleAddToSelection} disabled={adding}
+            className="flex-1 bg-gray-900 hover:bg-amber-600 text-white h-14 rounded-xl font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shadow-lg"
         >
-            {adding ? "Adding..." : "Add to Inquiry"}
+            {adding ? <Loader2 className="w-4 h-4 animate-spin"/> : <FileText className="w-4 h-4"/>} 
+            {adding ? "Adding..." : "Add to Portfolio"}
         </button>
       </div>
 
