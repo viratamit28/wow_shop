@@ -1,28 +1,30 @@
 const mongoose = require('mongoose');
 
 const ProductSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  
-  // 🔥 New Field: Electronics ke liye Model Number zaruri hai
-  model: { type: String, required: true, unique: true }, 
+  // 🔥 Core Details (Excel headers ke sath exactly matched)
+  Product_Name: { type: String, required: true },
+  Model_Number: { type: String, required: true, unique: true }, // Unique zaruri hai electronics ke liye
+  Brand: { type: String, default: "Generic" },
+  Category: { type: String, required: true }, // e.g., 'Mixer Grinder', 'Ovens'
 
-  brand: { type: String, default: "Generic" },
-  
-  description: { type: String, default: "No description available." },
-  
-  category: { type: String, required: true }, // e.g., 'ovens'
-  type: { type: String, default: "Kitchen Appliance" }, 
-  
-  price: { type: Number, required: true },
-  
-  // 🔥 Change: String -> [String] (Array) taaki Multiple Images aa sakein
-  image: { type: [String], required: true }, 
-  
-  rating: { type: Number, default: 4.5 },
-  tag: { type: String, default: "" },      
-  
-  // 🔥 Specs: Table Data ke liye Map
-  specs: { type: Map, of: String }         
-}, { timestamps: true });
+  // 🔥 Pricing & Inventory
+  MRP: { type: Number, required: true },
+  Selling_Price: { type: Number, required: true },
+  Stock_Quantity: { type: Number, required: true, default: 0 },
+
+  // 🔥 Kitchen Appliance Specific Specs (Jo Excel me the)
+  material_finish: { type: String, default: "Not specified" },
+  power_consumption: { type: String, default: "Not specified" },
+  Dimensions_cm: { type: String, default: "Not specified" },
+  Capacity: { type: String, default: "Not specified" },
+  Installation_Type: { type: String, default: "Not specified" },
+  Technical_Specifications: { type: String, default: "Not specified" },
+  Warranty_Details: { type: String, default: "No warranty info" },
+
+  // 🔥 Media & Ratings
+  Image: { type: [String], required: true }, // Array banaya taaki multiple images aa sakein
+  average_rating: { type: Number, default: 0 }
+
+}, { timestamps: true }); // createdAt aur updatedAt automatically handle honge
 
 module.exports = mongoose.model('Product', ProductSchema);

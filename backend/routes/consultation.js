@@ -18,28 +18,34 @@ router.post('/create', fetchuser, async (req, res) => {
             return res.status(401).json({ success: false, error: "Invalid Token Data" });
         }
 
-        const { customerDetails, appointment, interestedProducts, totalEstimatedValue } = req.body;
+        // 🔥 FIX 1: Frontend jo standard payload bhej raha hai, usko yahan unpack kiya hai
+        const { 
+            name, email, phone, address, city, pincode, 
+            scheduledDate, scheduledTime, message, 
+            totalAmount, products, ProductDetails 
+        } = req.body;
 
-        if (!customerDetails || !customerDetails.name || !customerDetails.phone) {
+        if (!name || !phone) {
             return res.status(400).json({ success: false, error: "Name and Phone are required" });
         }
 
-        // 1️⃣ SABSE PEHLE: MONGODB ME SAVE KARO (Safe & Guaranteed)
+        // 1️⃣ SABSE PEHLE: MONGODB ME SAVE KARO
         const newConsultation = new Consultation({
             user: userId,
+            // 🔥 FIX 2: Data ko Mongoose schema ke hisaab se precisely map kiya
             customerDetails: {
-                name: customerDetails.name,
-                phone: customerDetails.phone,
-                email: customerDetails.email || "",
-                address: { line: customerDetails.address?.line || "Not Provided" }
+                name: name,
+                phone: phone,
+                email: email || "",
+                address: { line: address || "Not Provided" }
             },
             appointment: {
-                date: appointment?.date || new Date(),
-                timeSlot: appointment?.timeSlot || "As soon as possible",
-                message: appointment?.message || ""
+                date: scheduledDate || new Date(),
+                timeSlot: scheduledTime || "As soon as possible",
+                message: message || ""
             },
-            interestedProducts: interestedProducts || [], 
-            totalEstimatedValue: totalEstimatedValue || 0,
+            interestedProducts: products || [], 
+            totalEstimatedValue: totalAmount || 0,
             status: 'Pending Expert Call' 
         });
 
@@ -47,20 +53,30 @@ router.post('/create', fetchuser, async (req, res) => {
         console.log("✅ [MONGODB] Success! Data saved. ID:", savedConsultation._id);
 
         // 2️⃣ DUSRA STEP: CRM KO BHEJO (TRY-CATCH KE ANDAR)
-        // Note: Humne yahan await ko block nahi kiya hai, ye background sync ki tarah kaam karega.
-        // CRM fail hone par API crash nahi hogi.
         try {
             console.log("🚀 [CRM] Sending data to wowshopping.4deal.co...");
-            // CRM Data Payload matching the exact frontend structure
-            await axios.post('https://wowshopping.4deal.co/lmsapi/addlead.ashx', req.body, { 
+            
+            // CRM Payload Formatting
+            const crmPayload = {
+                Name: name, 
+                ContactNo: phone, 
+                EMailId: email, 
+                Address: address, 
+                City: city, 
+                ZipCode: pincode,
+                PreferredSlot: `${scheduledDate} ${scheduledTime}`, 
+                Instructions: message || "No special instructions",
+                ProductDetails: ProductDetails || "See Dashboard", 
+                WebUrl: "wowshop.com" 
+            };
+
+            await axios.post('https://wowshopping.4deal.co/lmsapi/addlead.ashx', crmPayload, { 
                 headers: { 'Content-Type': 'application/json' },
                 timeout: 5000 // 5 seconds timeout
             });
             console.log("✅ [CRM] Lead successfully synced to CRM!");
         } catch (crmError) {
             console.error("⚠️ [CRM WARNING] CRM Sync Failed or Timed Out.");
-            // We just log the error, we DO NOT send this error to the user
-            console.error("CRM Error Message:", crmError.message);
         }
 
         // 3️⃣ TISRA STEP: FRONTEND KO SUCCESS BHEJO
@@ -75,6 +91,7 @@ router.post('/create', fetchuser, async (req, res) => {
         res.status(500).json({ success: false, error: "Internal Server Error" });
     }
 });
+
 
 // =================================================================
 // ROUTE 2: GET MY HISTORY (For User Profile Dashboard)

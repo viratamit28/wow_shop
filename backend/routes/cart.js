@@ -73,5 +73,27 @@ router.post('/update', verify, async (req, res) => {
     res.status(400).send(err.message);
   }
 });
+// --- 5. CLEAR ENTIRE CART (After Consultation Success) ---
+router.delete('/clear', verify, async (req, res) => {
+  try {
+    // 1. User ko find karo
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // 2. User ke cart array ko ekdum khali (empty) kar do
+    user.cart = [];
+    
+    // 3. Database mein save kar do
+    await user.save();
+
+    res.status(200).json({ success: true, message: "Portfolio/Cart cleared successfully" });
+  } catch (err) {
+    console.error("🔥 Error clearing cart:", err.message);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+});
 
 module.exports = router;

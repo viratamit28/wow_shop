@@ -36,8 +36,8 @@ export function BrandPartners() {
         const res = await axios.get(`${BACKEND_URL}/api/products`);
         const products = res.data;
 
-        // Extract Unique Brands
-        const uniqueBrands = [...new Set(products.map(p => p.brand).filter(Boolean))];
+        // 🔥 FIX: p.brand ki jagah p.Brand (Excel Schema)
+        const uniqueBrands = [...new Set(products.map(p => p.Brand).filter(Boolean))];
 
         const formattedBrands = uniqueBrands.map((brandName, index) => {
             const normalizedName = brandName.toLowerCase().trim();
@@ -104,7 +104,7 @@ export function BrandPartners() {
              transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
              className="text-4xl md:text-5xl lg:text-6xl font-serif text-gray-900 tracking-tight leading-tight"
            >
-             Global <span className="italic text-gray-400 font-light">Excellence.</span>
+              Global <span className="italic text-gray-400 font-light">Excellence.</span>
            </motion.h3>
         </div>
 
@@ -124,7 +124,6 @@ export function BrandPartners() {
              {seamlessBrands.map((brand, index) => (
                <div 
                  key={`${brand.slug}-${index}`}
-                 // 🔥 FIX 2: Correct Routing to Products Page with Search Query
                  onClick={() => navigate(`/products?brand=${brand.name}`)}
                  className="group relative w-64 md:w-80 h-40 flex flex-col items-center justify-center border-r border-gray-100 cursor-pointer bg-white hover:bg-[#F9FAFB] transition-colors duration-500"
                >

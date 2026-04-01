@@ -16,7 +16,6 @@ import Island from '../assests/layouts/Island-shaped.jpeg';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
 const CLOUDINARY_BASE_URL = "https://res.cloudinary.com/dcljdkqer/image/upload/";
 
-// 🔥 CRASH-PROOF LAYOUT DATA WITH EXACT HOTSPOT COORDINATES
 const layouts = {
   "L-Shaped": { image: Lshaped, slots: { hob: { top: "58%", left: "45%" }, chimney: { top: "25%", left: "45%" }, oven: { top: "55%", left: "75%" } } },
   "U-Shaped": { image: Ushaped, slots: { hob: { top: "55%", left: "50%" }, chimney: { top: "20%", left: "50%" }, oven: { top: "50%", left: "80%" } } },
@@ -41,7 +40,6 @@ export default function KitchenSizer() {
   const [products, setProducts] = useState({ hob: [], chimney: [], oven: [] });
   // User's Selections
   const [configuration, setConfiguration] = useState({ hob: null, chimney: null, oven: null });
-  // Currently Open Hotspot Panel
   const [activeSlot, setActiveSlot] = useState(null); 
 
   // Image Helper
@@ -61,9 +59,10 @@ export default function KitchenSizer() {
         const res = await axios.get(`${BACKEND_URL}/api/products`);
         const allProducts = res.data;
 
-        const hob = allProducts.filter(p => p.category?.toLowerCase().includes('hob') || p.category?.toLowerCase().includes('cooktop'));
-        const chimney = allProducts.filter(p => p.category?.toLowerCase().includes('chimney') || p.category?.toLowerCase().includes('hood'));
-        const oven = allProducts.filter(p => p.category?.toLowerCase().includes('oven') || p.category?.toLowerCase().includes('microwave'));
+        // 🔥 FIX: Naye database ke columns ('Category') aur Exact Names use kiye
+        const hob = allProducts.filter(p => p.Category?.toLowerCase().includes('hob') || p.Category?.toLowerCase().includes('cooktop'));
+        const chimney = allProducts.filter(p => p.Category?.toLowerCase().includes('hood') || p.Category?.toLowerCase().includes('chimney'));
+        const oven = allProducts.filter(p => p.Category?.toLowerCase().includes('oven') || p.Category?.toLowerCase().includes('microwave'));
 
         setProducts({ hob, chimney, oven });
       } catch (error) {
@@ -106,9 +105,10 @@ export default function KitchenSizer() {
   };
 
   const calculateTotal = () => {
-      const hPrice = configuration.hob?.price || 0;
-      const cPrice = configuration.chimney?.price || 0;
-      const oPrice = configuration.oven?.price || 0;
+      // 🔥 FIX: Use Selling_Price
+      const hPrice = configuration.hob?.Selling_Price || 0;
+      const cPrice = configuration.chimney?.Selling_Price || 0;
+      const oPrice = configuration.oven?.Selling_Price || 0;
       return hPrice + cPrice + oPrice;
   };
 
@@ -128,7 +128,7 @@ export default function KitchenSizer() {
         </div>
         
         {step === 2 && (
-             <button onClick={() => { setStep(1); setActiveSlot(null); }} className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-amber-600 transition-colors border-b border-transparent hover:border-amber-600 pb-1">
+             <button onClick={() => { setStep(1); setActiveSlot(null); setConfiguration({ hob: null, chimney: null, oven: null }); }} className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-amber-600 transition-colors border-b border-transparent hover:border-amber-600 pb-1">
                 Start Over
              </button>
         )}
@@ -213,12 +213,10 @@ export default function KitchenSizer() {
               >
                   {/* --- LEFT: THE VISUAL STAGE --- */}
                   <div className="flex-1 relative bg-gray-100 overflow-hidden">
-                      {/* Background Image */}
                       <img src={layouts[selectedLayout].image} alt="Kitchen Base" className="w-full h-full object-cover" />
-                      {/* Cinematic Vignette */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none" />
                       
-                      {/* Interactive Nodes (The "Material Board" Concept) */}
+                      {/* Interactive Nodes */}
                       {Object.keys(layouts[selectedLayout].slots).map((slotKey) => {
                           const pos = layouts[selectedLayout].slots[slotKey];
                           const isActive = activeSlot === slotKey;
@@ -227,35 +225,31 @@ export default function KitchenSizer() {
                           return (
                               <div key={slotKey} style={{ top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)' }} className="absolute z-20 flex flex-col items-center gap-2">
                                   
-                                  {/* Tooltip Label */}
                                   <span className={`text-[9px] font-bold uppercase tracking-widest text-white drop-shadow-md transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-0'}`}>
                                       {slotKey}
                                   </span>
 
-                                  {/* The Node Button */}
                                   <button
                                       onClick={() => setActiveSlot(isActive ? null : slotKey)}
                                       className={`relative w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl backdrop-blur-md border-[3px] group ${
                                           isActive ? 'border-amber-500 scale-110' : 'border-white/50 hover:border-white hover:scale-105'
                                       } ${selectedItem ? 'bg-white p-1' : 'bg-black/40'}`}
                                   >
-                                      {/* If product selected, show its thumbnail */}
                                       {selectedItem ? (
                                           <div className="w-full h-full rounded-full overflow-hidden bg-gray-50 flex items-center justify-center relative">
-                                              <img src={getImageUrl(selectedItem.image)} alt={slotKey} className="w-3/4 h-3/4 object-contain mix-blend-multiply" />
+                                              {/* 🔥 FIX: image -> Image */}
+                                              <img src={getImageUrl(selectedItem.Image)} alt={slotKey} className="w-3/4 h-3/4 object-contain mix-blend-multiply" />
                                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
                                                   <SlidersHorizontal className="w-4 h-4 text-white" />
                                               </div>
                                           </div>
                                       ) : (
-                                          // Empty State: Pulsing Plus
                                           <>
                                               <Plus className={`w-5 h-5 transition-colors ${isActive ? 'text-amber-500' : 'text-white'}`} strokeWidth={3} />
                                               {!isActive && <div className="absolute inset-0 rounded-full border border-white/50 animate-ping opacity-50" />}
                                           </>
                                       )}
                                       
-                                      {/* Success Checkmark indicator */}
                                       {selectedItem && (
                                           <div className="absolute -top-1 -right-1 bg-green-500 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
                                               <Check className="w-3 h-3 text-white" strokeWidth={4} />
@@ -268,7 +262,6 @@ export default function KitchenSizer() {
                   </div>
 
                   {/* --- RIGHT: THE PRODUCT SELECTOR PANEL --- */}
-                  {/* On Mobile: Slides up from bottom. On Desktop: Fixed Right Sidebar */}
                   <div className={`absolute lg:relative top-0 right-0 h-full w-full lg:w-[450px] bg-white z-30 flex flex-col shadow-[-20px_0_40px_rgba(0,0,0,0.05)] transition-transform duration-500 ${
                       activeSlot ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
                   }`}>
@@ -277,11 +270,10 @@ export default function KitchenSizer() {
                       <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                           <div>
                               <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-600 mb-1">Configuration</h3>
-                              <h2 className="text-2xl font-serif text-gray-900">
+                              <h2 className="text-2xl font-serif text-gray-900 capitalize">
                                   {activeSlot ? `Select ${activeSlot}` : "Overview"}
                               </h2>
                           </div>
-                          {/* Mobile Close Button */}
                           <button onClick={() => setActiveSlot(null)} className="lg:hidden p-2 bg-white rounded-full shadow-sm border border-gray-100 text-gray-400">
                               <X className="w-4 h-4" />
                           </button>
@@ -303,13 +295,15 @@ export default function KitchenSizer() {
                                               }`}
                                           >
                                               <div className="w-20 h-20 bg-gray-50 border border-gray-100 p-2 rounded-xl flex items-center justify-center">
-                                                  <img src={getImageUrl(product.image)} className="max-h-full max-w-full object-contain mix-blend-multiply" alt={product.name} />
+                                                  {/* 🔥 FIX: image -> Image */}
+                                                  <img src={getImageUrl(product.Image)} className="max-h-full max-w-full object-contain mix-blend-multiply" alt={product.Product_Name} />
                                               </div>
                                               <div className="flex-1">
-                                                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">{product.brand}</p>
-                                                  <h4 className="font-semibold text-xs text-gray-900 line-clamp-2 leading-snug mb-2">{product.name}</h4>
+                                                  {/* 🔥 FIX: brand -> Brand, name -> Product_Name, price -> Selling_Price */}
+                                                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">{product.Brand}</p>
+                                                  <h4 className="font-semibold text-xs text-gray-900 line-clamp-2 leading-snug mb-2">{product.Product_Name}</h4>
                                                   <div className="flex justify-between items-center">
-                                                      <p className="text-sm font-bold text-gray-900">₹{product.price.toLocaleString()}</p>
+                                                      <p className="text-sm font-bold text-gray-900">₹{product.Selling_Price?.toLocaleString()}</p>
                                                       {isSelected && <span className="text-[9px] uppercase tracking-widest font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-sm">Selected</span>}
                                                   </div>
                                               </div>
@@ -323,17 +317,20 @@ export default function KitchenSizer() {
                               // Overview State (When no slot is clicked)
                               <div className="space-y-4">
                                   {['hob', 'chimney', 'oven'].map(slot => (
-                                      <div key={slot} onClick={() => setActiveSlot(slot)} className="cursor-pointer p-4 border border-gray-100 rounded-2xl flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                      <div key={slot} onClick={() => setActiveSlot(slot)} className="cursor-pointer p-4 border border-gray-100 rounded-2xl flex items-center justify-between hover:bg-gray-50 transition-colors group">
                                           <div className="flex items-center gap-4">
                                               <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${configuration[slot] ? 'bg-gray-50' : 'bg-gray-100 border border-dashed border-gray-300'}`}>
-                                                  {configuration[slot] ? <img src={getImageUrl(configuration[slot].image)} className="w-8 h-8 object-contain mix-blend-multiply" alt=""/> : <Plus className="w-4 h-4 text-gray-400" />}
+                                                  {/* 🔥 FIX: image -> Image */}
+                                                  {configuration[slot] ? <img src={getImageUrl(configuration[slot].Image)} className="w-8 h-8 object-contain mix-blend-multiply" alt=""/> : <Plus className="w-4 h-4 text-gray-400 group-hover:text-amber-500" />}
                                               </div>
                                               <div>
                                                   <p className="text-[10px] uppercase tracking-widest font-bold text-gray-500">{slot}</p>
-                                                  <p className="text-xs font-medium text-gray-900 truncate w-32">{configuration[slot]?.name || 'Not Selected'}</p>
+                                                  {/* 🔥 FIX: name -> Product_Name */}
+                                                  <p className="text-xs font-medium text-gray-900 truncate w-32">{configuration[slot]?.Product_Name || 'Tap to Select'}</p>
                                               </div>
                                           </div>
-                                          {configuration[slot] && <p className="text-xs font-bold text-gray-900">₹{configuration[slot].price.toLocaleString()}</p>}
+                                          {/* 🔥 FIX: price -> Selling_Price */}
+                                          {configuration[slot] && <p className="text-xs font-bold text-gray-900">₹{configuration[slot].Selling_Price?.toLocaleString()}</p>}
                                       </div>
                                   ))}
                               </div>

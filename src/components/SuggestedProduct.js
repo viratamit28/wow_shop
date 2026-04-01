@@ -128,7 +128,8 @@ export default function SuggestedProducts() {
               style={{ transform: `translateX(-${currentSlide * 100}%)` }}
             >
               {suggestedProducts.map((product) => {
-                let displayImg = product.image;
+                // 🔥 CHANGE: product.image ki jagah product.Image use kiya
+                let displayImg = product.Image;
                 if (Array.isArray(displayImg)) {
                     displayImg = displayImg.length > 0 ? displayImg[0] : "";
                 }
@@ -150,7 +151,7 @@ export default function SuggestedProducts() {
                         <div className="relative h-48 md:h-56 bg-gray-50 flex items-center justify-center overflow-hidden p-6">
                           <img 
                             src={imageUrl} 
-                            alt={product.name}
+                            alt={product.Product_Name} // 🔥 CHANGE
                             className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700" 
                             onError={(e) => { e.target.src = "https://placehold.co/400x300?text=No+Image"; }}
                           />
@@ -163,15 +164,18 @@ export default function SuggestedProducts() {
 
                         <div className="p-6 flex flex-col flex-grow">
                           <div className="mb-2 text-[10px] font-extrabold text-amber-600 uppercase tracking-widest">
-                            {product.brand || "Exclusive"}
+                            {/* 🔥 CHANGE: product.brand ki jagah product.Brand */}
+                            {product.Brand || "Exclusive"}
                           </div>
                           
                           <h3 className="text-sm md:text-base font-bold text-gray-900 leading-snug mb-2 line-clamp-2 flex-grow group-hover:text-amber-600 transition-colors">
-                            {product.name}
+                            {/* 🔥 CHANGE: product.name ki jagah product.Product_Name */}
+                            {product.Product_Name}
                           </h3>
 
                           <div className="flex items-baseline gap-2 mb-5 border-t border-gray-100 pt-4 mt-2">
-                            <span className="text-lg md:text-xl font-serif font-bold text-gray-900">₹{product.price?.toLocaleString()}</span>
+                            {/* 🔥 CHANGE: product.price ki jagah product.Selling_Price */}
+                            <span className="text-lg md:text-xl font-serif font-bold text-gray-900">₹{product.Selling_Price?.toLocaleString()}</span>
                           </div>
 
                           <div className="grid grid-cols-2 gap-3 mt-auto">

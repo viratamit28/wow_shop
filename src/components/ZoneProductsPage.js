@@ -89,7 +89,8 @@ export default function ZoneProductsPage() {
 
   const handleAddToCart = (product) => {
       // Future me Context API se yahan add karenge
-      alert(`${product.name} will be added to portfolio soon!`);
+      // 🔥 CHANGE: product.name -> product.Product_Name
+      alert(`${product.Product_Name} will be added to portfolio soon!`);
   }
 
   return (
@@ -122,8 +123,8 @@ export default function ZoneProductsPage() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {products.map(product => {
-            // 🔥 DATABASE FIX: Handle missing or array images safely
-            const imageUrl = Array.isArray(product.image) ? product.image[0] : (product.image || 'https://via.placeholder.com/300?text=No+Image');
+            // 🔥 CHANGE: product.image -> product.Image
+            const imageUrl = Array.isArray(product.Image) ? product.Image[0] : (product.Image || 'https://via.placeholder.com/300?text=No+Image');
 
             return (
               <div
@@ -134,7 +135,7 @@ export default function ZoneProductsPage() {
                 <div className="relative h-64 overflow-hidden bg-white p-6 cursor-pointer" onClick={() => handleSelect(product)}>
                   <img
                     src={imageUrl}
-                    alt={product.name}
+                    alt={product.Product_Name} // 🔥 CHANGE: product.name -> product.Product_Name
                     className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700"
                     onError={(e) => { e.target.src = 'https://via.placeholder.com/300?text=No+Image'; }} 
                   />
@@ -150,14 +151,18 @@ export default function ZoneProductsPage() {
                 {/* Content Area */}
                 <div className="p-6 flex flex-col flex-grow bg-gray-50/50">
                    <div className="mb-auto cursor-pointer" onClick={() => handleSelect(product)}>
-                      <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest mb-2">{product.category}</p>
-                      <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2 line-clamp-2 group-hover:text-amber-600 transition-colors">{product.name}</h3>
-                      <p className="text-[13px] text-gray-500 line-clamp-2 mb-4 font-light">{product.description}</p>
+                      {/* 🔥 CHANGE: product.category -> product.Category */}
+                      <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest mb-2">{product.Category || product.Brand}</p>
+                      {/* 🔥 CHANGE: product.name -> product.Product_Name */}
+                      <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2 line-clamp-2 group-hover:text-amber-600 transition-colors">{product.Product_Name}</h3>
+                      {/* 🔥 CHANGE: product.description -> product.Technical_Specifications */}
+                      <p className="text-[13px] text-gray-500 line-clamp-2 mb-4 font-light">{product.Technical_Specifications || "Premium kitchen appliance built for modern homes."}</p>
                   </div>
                   
                   <div className="mt-4 pt-4 border-t border-gray-200">
                       <div className="flex items-center justify-between mb-5">
-                          <span className="text-xl font-bold text-gray-900">₹{product.price?.toLocaleString() || 'N/A'}</span>
+                          {/* 🔥 CHANGE: product.price -> product.Selling_Price */}
+                          <span className="text-xl font-bold text-gray-900">₹{product.Selling_Price?.toLocaleString() || 'N/A'}</span>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-3">

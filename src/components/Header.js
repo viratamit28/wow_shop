@@ -106,6 +106,9 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddedDialog, setShowAddedDialog] = useState(false);
   
+  // 🔥 FIX 1: "isReadyToListen" state add kiya hai Context API ke delay ko sambhalne ke liye
+  const [isReadyToListen, setIsReadyToListen] = useState(false);
+  
   const prevCartCount = useRef(cartCount);
   const searchInputRef = useRef(null);
 
@@ -123,17 +126,24 @@ export function Header() {
     }
   }, [showSearch]);
 
+  // 🔥 FIX 2: 1.5 second ka delay taaki page reload hone par initial cart fetch hone par popup na khule
   useEffect(() => {
-    if (cartCount > prevCartCount.current) {
+    const delayTimer = setTimeout(() => setIsReadyToListen(true), 1500);
+    return () => clearTimeout(delayTimer);
+  }, []);
+
+  // 🔥 FIX 3: Timer 3 seconds (3000ms) par set kar diya
+  useEffect(() => {
+    if (isReadyToListen && cartCount > prevCartCount.current) {
       if (location.pathname !== '/cart' && location.pathname !== '/consultation') {
         setShowAddedDialog(true);
-        const timer = setTimeout(() => setShowAddedDialog(false), 4000);
+        const timer = setTimeout(() => setShowAddedDialog(false), 3000); 
         prevCartCount.current = cartCount; 
         return () => clearTimeout(timer);
       }
     }
     prevCartCount.current = cartCount;
-  }, [cartCount, location.pathname]);
+  }, [cartCount, location.pathname, isReadyToListen]);
 
   const isWhiteTheme = isScrolled || activeMenu || showSearch;
   const textColor = isWhiteTheme ? "text-gray-900" : "text-white drop-shadow-md"; 
@@ -142,7 +152,7 @@ export function Header() {
     ? "bg-white/95 backdrop-blur-md py-4 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border-b border-gray-100" 
     : "bg-black/20 backdrop-blur-sm py-6 border-b border-white/10";
 
-  // Universal Image Helper (Perfected for Backend)
+  // Universal Image Helper 
   const getImageUrl = (path) => {
     if (!path) return null;
     let displayImg = Array.isArray(path) ? path[0] : path;
@@ -164,10 +174,8 @@ export function Header() {
 
             <div className="flex flex-col justify-center w-[200px]">
               <div onClick={() => navigate('/')} className="cursor-pointer group flex items-end gap-2">
-                 <img src={logo} alt="Wow_shop" className="h-8 md:h-12 w-auto object-contain transition-transform duration-500 group-hover:scale-105" />
-                 <span className={`hidden md:block text-[9px] uppercase tracking-[0.2em] font-bold mb-0.5 transition-colors duration-500 ${isWhiteTheme ? "text-gray-400" : "text-white/80"}`}>
-                    Guided <br /> Buying.
-                 </span>
+                 <img src={logo} alt="Wow_shop" className="h-8 md:h-20 w-auto object-contain transition-transform duration-500 group-hover:scale-105" />
+                
               </div>
             </div>
 
@@ -240,24 +248,23 @@ export function Header() {
                       <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
                         {Array.isArray(cart) && cart.length > 0 ? (
                           cart.map((item, i) => {
-                            // 🔥 YAHAN MAIN FIX HAI: productId logic accurately matched with CartDetail.js
                             const product = item?.productId || item?.product || item;
-                            
-                            // Agar product resolve nahi hua toh render mat karo
                             if (!product || !product._id) return null;
 
                             return (
                               <div key={product._id || i} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 group/item cursor-pointer" onClick={() => navigate(`/product-details/${product._id}`)}>
                                 <div className="w-10 h-10 bg-gray-50 rounded p-1 shrink-0 border border-gray-100 flex items-center justify-center">
+                                  {/* 🔥 FIX 4: product.image -> product.Image */}
                                   <img 
-                                    src={getImageUrl(product.image) || 'https://placehold.co/50x50?text=No+Img'} 
+                                    src={getImageUrl(product.Image) || 'https://placehold.co/50x50?text=No+Img'} 
                                     className="max-w-full max-h-full object-contain mix-blend-multiply" 
-                                    alt={product.name || 'product'} 
+                                    alt={product.Product_Name || 'product'} 
                                     onError={(e) => { e.target.src = "https://placehold.co/50x50?text=No+Img" }}
                                   />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-[12px] text-gray-800 line-clamp-1 group-hover/item:text-amber-600 transition-colors">{product.name || 'Unknown Item'}</p>
+                                  {/* 🔥 FIX 5: product.name -> product.Product_Name */}
+                                  <p className="text-[12px] text-gray-800 line-clamp-1 group-hover/item:text-amber-600 transition-colors">{product.Product_Name || 'Unknown Item'}</p>
                                   <p className="text-[10px] text-gray-400">Qty: {item.quantity || 1}</p>
                                 </div>
                                 <button 

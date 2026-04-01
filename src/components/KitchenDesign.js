@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, MoveRight, Layers, ArrowUpRight } from 'lucide-react'; 
-import { motion, AnimatePresence } from "framer-motion";
+import { MoveRight, Layers, ArrowUpRight } from 'lucide-react'; 
 
 // Assets
 import Lshaped from '../assests/layouts/L-shaped.jpg';
@@ -33,6 +32,17 @@ export default function KitchenDesign() {
     });
   }, []);
 
+  // 🔥 SMART CLICK HANDLER (Mobile Users ke liye)
+  const handleCardClick = (id) => {
+    if (activeId === id) {
+      // Agar card pehle se bada hai, tabhi navigate karo
+      navigate(`/kitchen-layout/${id}`);
+    } else {
+      // Agar chhota hai, toh pehle usko bada karo (Expand)
+      setActiveId(id);
+    }
+  };
+
   return (
     <section className="bg-[#FAFAFA] min-h-screen w-full relative font-sans text-gray-900 py-24 overflow-hidden border-t border-gray-200">
       
@@ -61,8 +71,7 @@ export default function KitchenDesign() {
               <div
                 key={item.id}
                 onMouseEnter={() => setActiveId(item.id)}
-                onClick={() => navigate(`/kitchen-layout/${item.id}`)}
-                // 🔥 THE MAGIC TRICK: CSS Flex Transition
+                onClick={() => handleCardClick(item.id)} // 🔥 Update here
                 className={`relative h-full rounded-[2rem] overflow-hidden cursor-pointer transition-[flex,filter] duration-700 ease-out flex-col justify-end
                   ${isActive ? "flex-[5] md:flex-[4] filter-none shadow-2xl" : "flex-[1] md:flex-[0.5] grayscale-[50%] hover:grayscale-0"}
                 `}

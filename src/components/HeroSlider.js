@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, ArrowRight, ShieldCheck, Star, Users } from "lucide-react";
-// 🔥 FIX 1: Modal Import kiya
 import { BookingConsultation } from "./BookingConsultation"; 
 
 const slides = [
@@ -14,7 +13,8 @@ const slides = [
     description: "Experience whisper-quiet performance with our premium range of designer kitchen hoods.",
     image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=2053&auto=format&fit=crop", 
     cta: "Explore Chimneys",
-    path: "/products?category=Chimneys",
+    // 🔥 FIX 1: Database ke hisaab se exact category name "Hood"
+    path: "/products?category=Hood",
     action: "link" 
   },
   {
@@ -24,7 +24,8 @@ const slides = [
     description: "Master the art of cooking with built-in ovens designed for professional chefs at home.",
     image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80", 
     cta: "Discover Ovens",
-    path: "/products?category=Ovens",
+    // 🔥 FIX 2: Database ke hisaab se exact category name "Oven"
+    path: "/products?category=Oven",
     action: "link"
   },
   {
@@ -35,41 +36,38 @@ const slides = [
     image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80",
     cta: "Book Consultation",
     path: "#",
-    action: "modal" // 🔥 FIX 2: Ye flag button ko batayega ki modal kholna hai
+    action: "modal" 
   },
 ];
 
 export function HeroSlider() {
   const navigate = useNavigate(); 
   const [current, setCurrent] = useState(0);
-  const [autoplay, setAutoplay] = useState(true);
-  
-  // 🔥 FIX 3: Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // 🔥 FIX 3: Smart Timer Logic (Ab slider hamesha zinda rahega!)
   useEffect(() => {
-    if (!autoplay || isModalOpen) return; // Agar modal open hai, toh slider auto-play band ho jayega
+    if (isModalOpen) return; // Modal open hone par timer pause ho jayega
+    
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % slides.length);
     }, 6000); 
+    
+    // 'current' ko dependency me daalne se manual click par timer reset ho jayega
     return () => clearInterval(timer);
-  }, [autoplay, slides.length, isModalOpen]);
+  }, [isModalOpen, current, slides.length]);
 
   const handleNext = () => {
-    setAutoplay(false);
     setCurrent((prev) => (prev + 1) % slides.length);
   };
 
   const handlePrev = () => {
-    setAutoplay(false);
     setCurrent((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
   };
 
-  // 🔥 FIX 4: Click Handler (Route vs Modal)
   const handleCtaClick = (slide) => {
     if (slide.action === "modal") {
-      setIsModalOpen(true);
-      setAutoplay(false); // Pause slider
+      setIsModalOpen(true); // Modal khulega, aur useEffect automatically slider rok dega
     } else {
       navigate(slide.path);
     }
@@ -158,7 +156,14 @@ export function HeroSlider() {
       </div>
 
       <div className="absolute bottom-28 md:bottom-24 left-6 md:left-12 lg:left-24 w-32 md:w-64 h-[2px] bg-white/20 z-20 overflow-hidden">
-        <motion.div key={current} initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 6, ease: "linear" }} className="h-full bg-amber-500"/>
+        {/* 🔥 FIX 4: Progress Bar Animation Logic Perfected */}
+        <motion.div 
+          key={current} 
+          initial={{ width: "0%" }} 
+          animate={{ width: isModalOpen ? "0%" : "100%" }} 
+          transition={{ duration: 6, ease: "linear" }} 
+          className="h-full bg-amber-500"
+        />
       </div>
 
       {/* Trust Bar */}
@@ -174,7 +179,6 @@ export function HeroSlider() {
         </div>
       </div>
 
-      {/* 🔥 FIX 5: Render Modal */}
       <BookingConsultation 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 

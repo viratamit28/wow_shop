@@ -38,7 +38,8 @@ const CartDetail = () => {
   const calculateTotal = (items) => {
     const total = items.reduce((acc, item) => {
         if (!item.product) return acc;
-        return acc + ((item.product.price || 0) * item.quantity);
+        // 🔥 CHANGE: product.price -> product.Selling_Price
+        return acc + ((item.product.Selling_Price || 0) * item.quantity);
     }, 0);
     setTotalValue(total);
   };
@@ -139,11 +140,12 @@ const CartDetail = () => {
                 const product = item.product;
                 if (!product) return null; 
 
-                let displayImg = product.image;
+                // 🔥 CHANGE: product.image -> product.Image
+                let displayImg = product.Image;
                 if (Array.isArray(displayImg)) {
                     displayImg = displayImg.length > 0 ? displayImg[0] : "";
                 }
-                const cleanPath = typeof displayImg === 'string' ? displayImg.replace(/\\/g, '/') : '';
+                const cleanPath = typeof displayImg === 'string' ? displayImg.replace(/\\/g, '') : '';
                 const finalImgUrl = displayImg && displayImg.startsWith('http') 
                     ? displayImg 
                     : `${BACKEND_URL}/${cleanPath}`;
@@ -166,21 +168,25 @@ const CartDetail = () => {
                         >
                             <img 
                                 src={finalImgUrl} 
-                                alt={product.name} 
+                                alt={product.Product_Name} // 🔥 CHANGE
                                 className="max-w-full max-h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700"
                                 onError={(e) => { e.target.src = "https://placehold.co/200x200?text=No+Img" }}
                             />
                         </div>
                         
-                        {/* 🔥 FIX 2: min-w-0 lagaya taaki text overflow na ho */}
                         <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
                             <div className="flex justify-between items-start gap-4">
                                 <div className="min-w-0">
-                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-1.5 truncate">{product.brand || "Exclusive"}</p>
+                                    {/* 🔥 CHANGE: product.brand -> product.Brand */}
+                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-1.5 truncate">{product.Brand || "Exclusive"}</p>
+                                    
+                                    {/* 🔥 CHANGE: product.name -> product.Product_Name */}
                                     <h3 className="font-bold text-gray-900 text-sm md:text-lg leading-snug cursor-pointer hover:text-amber-600 transition-colors line-clamp-2" onClick={() => navigate(`/product-details/${product._id}`)}>
-                                        {product.name}
+                                        {product.Product_Name}
                                     </h3>
-                                    {product.model && <p className="text-[10px] uppercase tracking-widest text-gray-400 mt-2 truncate">Model: {product.model}</p>}
+                                    
+                                    {/* 🔥 CHANGE: product.model -> product.Model_Number */}
+                                    {product.Model_Number && <p className="text-[10px] uppercase tracking-widest text-gray-400 mt-2 truncate">Model: {product.Model_Number}</p>}
                                 </div>
                                 <button 
                                     onClick={() => handleRemove(product._id, item._id)} 
@@ -216,7 +222,8 @@ const CartDetail = () => {
                                 
                                 <div className="text-right">
                                     <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Est. Value</span>
-                                    <span className="font-serif font-medium text-lg md:text-2xl text-gray-900">₹{((product.price || 0) * item.quantity).toLocaleString()}</span>
+                                    {/* 🔥 CHANGE: product.price -> product.Selling_Price */}
+                                    <span className="font-serif font-medium text-lg md:text-2xl text-gray-900">₹{((product.Selling_Price || 0) * item.quantity).toLocaleString()}</span>
                                 </div>
                             </div>
                         </div>
@@ -286,4 +293,3 @@ const CartDetail = () => {
 }
 
 export default CartDetail;
-

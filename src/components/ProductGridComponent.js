@@ -2,8 +2,11 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { AuthContext } from "../context/AuthContext";
-import { Loader2, Package, SearchX, SlidersHorizontal, ArrowRight, X } from "lucide-react";
+import { Loader2, SearchX, SlidersHorizontal, X } from "lucide-react"; // Removed unused icons like Package, ArrowRight
 import { motion, AnimatePresence } from "framer-motion";
+
+// === NAYA IMPORT: Category Education Component ===
+import CategoryEducation from "./CategoryEducation";
 
 // === ASSETS IMPORT ===
 import imgOven from '../assests/oven.jpg';
@@ -69,8 +72,8 @@ export default function ProductGridComponent() {
         if (fetchedProducts.length > 0) {
             const brandsObj = {};
             fetchedProducts.forEach(p => {
-                if (p.brand) {
-                    brandsObj[p.brand] = (brandsObj[p.brand] || 0) + 1;
+                if (p.Brand) {
+                    brandsObj[p.Brand] = (brandsObj[p.Brand] || 0) + 1;
                 }
             });
             const brandsArray = Object.entries(brandsObj).map(([name, count]) => ({ name, count }));
@@ -98,12 +101,12 @@ export default function ProductGridComponent() {
 
   // 3. FILTERING & SORTING LOGIC
   function filteredProducts() {
-    let arr = dbProducts.filter((p) => (p.price || 0) >= minPrice && (p.price || 0) <= maxPrice);
+    let arr = dbProducts.filter((p) => (p.Selling_Price || 0) >= minPrice && (p.Selling_Price || 0) <= maxPrice);
     if (selectedBrands.size > 0) {
-      arr = arr.filter((p) => p.brand && selectedBrands.has(p.brand));
+      arr = arr.filter((p) => p.Brand && selectedBrands.has(p.Brand));
     }
-    if (sort === "price-asc") arr = arr.slice().sort((a, b) => (a.price || 0) - (b.price || 0));
-    if (sort === "price-desc") arr = arr.slice().sort((a, b) => (b.price || 0) - (a.price || 0));
+    if (sort === "price-asc") arr = arr.slice().sort((a, b) => (a.Selling_Price || 0) - (b.Selling_Price || 0));
+    if (sort === "price-desc") arr = arr.slice().sort((a, b) => (b.Selling_Price || 0) - (a.Selling_Price || 0));
     return arr;
   }
 
@@ -185,7 +188,7 @@ export default function ProductGridComponent() {
     <div className="min-h-screen bg-[#FAFAFA] font-sans pb-24 pt-28">
       
       {/* === HEADER SECTION (Cinematic Banner) === */}
-      <div className="relative w-full h-[40vh] min-h-[350px] mb-12 flex items-center mt-[-112px]"> 
+      <div className="relative w-full h-[40vh] min-h-[350px] mb-0 flex items-center mt-[-112px]"> 
         <div className="absolute inset-0">
           <img src={getHeaderImage(pageTitle)} alt={pageTitle} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent" />
@@ -208,7 +211,10 @@ export default function ProductGridComponent() {
         </div>
       </div>
 
-      <div className="max-w-[1500px] mx-auto px-6 lg:px-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
+      {/* === 🔥 NAYA CATEGORY EDUCATION BLOCK YAHAN AAYEGA === */}
+      <CategoryEducation category={categoryFilter} type={typeFilter} />
+
+      <div className="max-w-[1500px] mx-auto px-6 lg:px-12 grid grid-cols-1 lg:grid-cols-12 gap-12 mt-16">
         
         {/* === LEFT SIDEBAR: FILTERS === */}
         <aside className="lg:col-span-3 h-fit lg:sticky lg:top-32">
@@ -304,18 +310,18 @@ export default function ProductGridComponent() {
 
                   {/* Product Image */}
                   <div className="relative bg-[#F5F5F7] aspect-[4/3] flex items-center justify-center p-8 cursor-pointer" onClick={() => navigate(`/product-details/${p._id}`)}>
-                    <img src={getImageUrl(p.image)} alt={p.name} className="w-full h-full object-contain mix-blend-multiply transition-transform duration-700 hover:scale-105" />
+                    <img src={getImageUrl(p.Image)} alt={p.Product_Name} className="w-full h-full object-contain mix-blend-multiply transition-transform duration-700 hover:scale-105" />
                   </div>
 
                   {/* Product Details & Actions */}
                   <div className="p-6 flex flex-col flex-1">
-                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.25em] mb-1.5 block">{p.brand || 'Exclusive'}</span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.25em] mb-1.5 block">{p.Brand || 'Exclusive'}</span>
                     <h4 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 mb-3 cursor-pointer hover:text-amber-600 transition-colors" onClick={() => navigate(`/product-details/${p._id}`)}>
-                      {p.name}
+                      {p.Product_Name}
                     </h4>
                     
                     <div className="mt-auto mb-5">
-                      <div className="text-xl font-serif font-bold text-gray-900 tracking-tight">₹{p.price?.toLocaleString()}</div>
+                      <div className="text-xl font-serif font-bold text-gray-900 tracking-tight">₹{p.Selling_Price?.toLocaleString()}</div>
                     </div>
 
                     {/* Explicit Actions (Details & Add to Cart) */}
@@ -376,15 +382,14 @@ export default function ProductGridComponent() {
                         <div key={product._id} className="bg-white/5 rounded-2xl p-4 flex flex-col relative group border border-white/10">
                           <button onClick={() => removeFromCompare(product._id)} className="absolute top-2 right-2 p-1.5 bg-black/50 text-white/50 rounded-full hover:text-red-500 hover:bg-black z-10 transition-all"><X className="w-3 h-3"/></button>
                           <div className="h-28 bg-white rounded-xl flex items-center justify-center mb-4 p-3">
-                            <img src={getImageUrl(product.image)} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" />
+                            <img src={getImageUrl(product.Image)} alt={product.Product_Name} className="w-full h-full object-contain mix-blend-multiply" />
                           </div>
-                          <p className="text-[9px] uppercase tracking-widest font-bold text-amber-500 mb-1">{product.brand || 'Exclusive'}</p>
-                          <h4 className="text-xs font-medium text-white/90 line-clamp-2 mb-3 flex-grow">{product.name}</h4>
-                          <div className="text-sm font-serif text-white">₹{product.price?.toLocaleString()}</div>
+                          <p className="text-[9px] uppercase tracking-widest font-bold text-amber-500 mb-1">{product.Brand || 'Exclusive'}</p>
+                          <h4 className="text-xs font-medium text-white/90 line-clamp-2 mb-3 flex-grow">{product.Product_Name}</h4>
+                          <div className="text-sm font-serif text-white">₹{product.Selling_Price?.toLocaleString()}</div>
                         </div>
                       ))}
                     </div>
-                    {/* Add Navigation to a dedicated compare page if needed, or keep as specs view trigger */}
                     <button className="w-full mt-6 py-4 bg-amber-600 text-black text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-amber-500 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]">
                       View Detailed Specs
                     </button>

@@ -27,34 +27,32 @@ const categoryImages = {
   "default": defaultImg
 };
 
+// 🔥 FIX: Naye Excel Schema ke hisaab se Comparison Table ke Fields
 const COMPARISON_SCHEMA = [
     {
         section: "Key Information",
         fields: [
-            { label: "Brand", key: "brand" },
-            { label: "Model Name", key: "name" }, 
-            { label: "Appliance Type", key: "type" }, 
-            { label: "Color / Finish", key: "color" }, 
+            { label: "Brand", key: "Brand" },
+            { label: "Product Name", key: "Product_Name" }, 
+            { label: "Model Number", key: "Model_Number" }, 
+            { label: "Category", key: "Category" }, 
         ]
     },
     {
         section: "Specifications",
         fields: [
-            { label: "Capacity", key: "capacity" },
-            { label: "Material", key: "material" },
-            { label: "Control System", key: "controlType" }, 
-            { label: "Power Output", key: "power" }, 
-            { label: "Noise Level", key: "noiseLevel" },
-            { label: "Energy Rating", key: "energyRating" },
+            { label: "Capacity", key: "Capacity" },
+            { label: "Dimensions", key: "Dimensions_cm" },
+            { label: "Material / Finish", key: "material_finish" }, 
+            { label: "Power Consumption", key: "power_consumption" }, 
+            { label: "Installation Type", key: "Installation_Type" },
         ]
     },
     {
         section: "Features & Support",
         fields: [
-            { label: "Special Features", key: "autoFeature" },
-            { label: "Connectivity", key: "connectivity" }, 
-            { label: "General Warranty", key: "warrantyProduct" },
-            { label: "Motor Warranty", key: "warrantyMotor" },
+            { label: "Warranty Details", key: "Warranty_Details" },
+            { label: "Technical Specs", key: "Technical_Specifications" }, 
         ]
     }
 ];
@@ -108,7 +106,6 @@ export default function ComparisonBanner() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selection, setSelection] = useState([]); 
   
-  // NAYA STATE: Scroll track karne ke liye
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -127,7 +124,8 @@ export default function ComparisonBanner() {
       if (!data || data.length === 0) throw new Error("No Data");
 
       setAllProducts(data);
-      const uniqueCats = [...new Set(data.map(item => normalizeCategory(item.category)))].filter(Boolean);
+      // 🔥 FIX: data.map(item => normalizeCategory(item.Category))
+      const uniqueCats = [...new Set(data.map(item => normalizeCategory(item.Category)))].filter(Boolean);
       setCategories(uniqueCats);
     } catch (err) {
       console.error("Backend Error:", err);
@@ -178,14 +176,13 @@ export default function ComparisonBanner() {
       }, 500);
   };
 
+  // 🔥 FIX: Simplified getValue for new Flat Schema
   const getValue = (product, key) => {
       if (!product) return "N/A";
-      if (product[key]) return product[key];
-      if (product.specs && product.specs[key]) return product.specs[key];
+      if (product[key] && product[key] !== "Not specified") return product[key];
       return "N/A";
   };
 
-  // NAYA FUNCTION: Scroll handle karne ke liye
   const handleScroll = (e) => {
       if (e.target.scrollTop > 80) {
           setIsScrolled(true);
@@ -205,7 +202,8 @@ export default function ComparisonBanner() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {categories.map((cat) => {
                 const bgImage = categoryImages[cat] || categoryImages["default"];
-                const count = allProducts.filter(p => normalizeCategory(p.category) === cat).length;
+                // 🔥 FIX: p.category -> p.Category
+                const count = allProducts.filter(p => normalizeCategory(p.Category) === cat).length;
                 
                 return (
                     <button
@@ -227,7 +225,8 @@ export default function ComparisonBanner() {
 
   // =================== STEP 2: PRODUCT SELECTION ===================
   const renderProductSelection = () => {
-    const products = allProducts.filter(p => normalizeCategory(p.category) === selectedCategory);
+    // 🔥 FIX: p.category -> p.Category
+    const products = allProducts.filter(p => normalizeCategory(p.Category) === selectedCategory);
 
     return (
         <div className="flex flex-col h-full bg-[#FAFAFA]">
@@ -245,10 +244,11 @@ export default function ComparisonBanner() {
                         <div className="flex-1 md:w-64 h-20 bg-gray-50 border border-gray-200 rounded-xl flex items-center p-3 relative">
                             {selection[0] ? (
                                 <>
-                                    <SafeImage src={selection[0].image} className="w-14 h-14 object-contain mr-3 bg-white rounded-lg p-1 border border-gray-100" />
+                                    {/* 🔥 FIX: image -> Image, brand -> Brand, name -> Product_Name */}
+                                    <SafeImage src={selection[0].Image} className="w-14 h-14 object-contain mr-3 bg-white rounded-lg p-1 border border-gray-100" />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] text-gray-400 uppercase font-bold truncate">{selection[0].brand}</p>
-                                        <p className="text-xs font-semibold text-gray-900 truncate">{selection[0].name}</p>
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold truncate">{selection[0].Brand}</p>
+                                        <p className="text-xs font-semibold text-gray-900 truncate">{selection[0].Product_Name}</p>
                                     </div>
                                     <button onClick={() => removeProduct(selection[0]._id)} className="absolute -top-2 -right-2 bg-white border border-gray-200 text-gray-500 hover:text-red-500 rounded-full p-1 shadow-sm"><X className="w-3 h-3"/></button>
                                 </>
@@ -265,10 +265,10 @@ export default function ComparisonBanner() {
                         <div className="flex-1 md:w-64 h-20 bg-gray-50 border border-gray-200 rounded-xl flex items-center p-3 relative">
                             {selection[1] ? (
                                 <>
-                                    <SafeImage src={selection[1].image} className="w-14 h-14 object-contain mr-3 bg-white rounded-lg p-1 border border-gray-100" />
+                                    <SafeImage src={selection[1].Image} className="w-14 h-14 object-contain mr-3 bg-white rounded-lg p-1 border border-gray-100" />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] text-gray-400 uppercase font-bold truncate">{selection[1].brand}</p>
-                                        <p className="text-xs font-semibold text-gray-900 truncate">{selection[1].name}</p>
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold truncate">{selection[1].Brand}</p>
+                                        <p className="text-xs font-semibold text-gray-900 truncate">{selection[1].Product_Name}</p>
                                     </div>
                                     <button onClick={() => removeProduct(selection[1]._id)} className="absolute -top-2 -right-2 bg-white border border-gray-200 text-gray-500 hover:text-red-500 rounded-full p-1 shadow-sm"><X className="w-3 h-3"/></button>
                                 </>
@@ -333,11 +333,11 @@ export default function ComparisonBanner() {
                                         )}
 
                                         <div className="w-full aspect-square bg-gray-50 rounded-lg flex items-center justify-center mb-4 p-4">
-                                            <SafeImage src={product.image} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" />
+                                            <SafeImage src={product.Image} alt={product.Product_Name} className="w-full h-full object-contain mix-blend-multiply" />
                                         </div>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{product.brand}</p>
-                                        <h4 className="text-gray-900 font-semibold text-sm leading-snug line-clamp-2 mb-3 flex-1">{product.name}</h4>
-                                        <p className="text-gray-900 font-bold">₹{product.price ? product.price.toLocaleString() : "N/A"}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{product.Brand}</p>
+                                        <h4 className="text-gray-900 font-semibold text-sm leading-snug line-clamp-2 mb-3 flex-1">{product.Product_Name}</h4>
+                                        <p className="text-gray-900 font-bold">₹{product.Selling_Price ? product.Selling_Price.toLocaleString() : "N/A"}</p>
                                     </div>
                                 )
                             })}
@@ -356,17 +356,16 @@ export default function ComparisonBanner() {
       return (
           <div className="max-w-[1000px] mx-auto pb-20 pt-8 bg-white">
               
-              {/* NAYA: Sticky Header with Scroll Tracking & Shrink Logic */}
               <div className={`grid grid-cols-2 gap-4 md:gap-8 sticky top-0 z-40 bg-white border-b border-gray-200 shadow-[0_10px_20px_rgba(0,0,0,0.02)] transition-all duration-300 ${isScrolled ? 'py-2' : 'py-6'}`}>
                 
                 {/* Product 1 Header */}
                 <div className="flex flex-col items-center text-center px-2">
                     <div className={`w-full max-w-[200px] flex items-center justify-center transition-all duration-300 ${isScrolled ? 'h-12 md:h-16 mb-1' : 'h-32 md:h-40 mb-4'}`}>
-                        <SafeImage src={p1.image} alt={p1.name} className="h-full object-contain mix-blend-multiply" />
+                        <SafeImage src={p1.Image} alt={p1.Product_Name} className="h-full object-contain mix-blend-multiply" />
                     </div>
-                    {!isScrolled && <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-1 transition-all">{p1.brand}</p>}
-                    <h3 className={`font-bold text-gray-900 transition-all duration-300 ${isScrolled ? 'text-xs md:text-sm line-clamp-1 h-auto mb-1' : 'text-sm md:text-base line-clamp-2 mb-2 h-10 md:h-12'}`}>{p1.name}</h3>
-                    <p className={`text-gray-900 font-bold transition-all duration-300 ${isScrolled ? 'text-sm mb-1' : 'text-xl mb-4'}`}>₹{p1.price ? p1.price.toLocaleString() : "N/A"}</p>
+                    {!isScrolled && <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-1 transition-all">{p1.Brand}</p>}
+                    <h3 className={`font-bold text-gray-900 transition-all duration-300 ${isScrolled ? 'text-xs md:text-sm line-clamp-1 h-auto mb-1' : 'text-sm md:text-base line-clamp-2 mb-2 h-10 md:h-12'}`}>{p1.Product_Name}</h3>
+                    <p className={`text-gray-900 font-bold transition-all duration-300 ${isScrolled ? 'text-sm mb-1' : 'text-xl mb-4'}`}>₹{p1.Selling_Price ? p1.Selling_Price.toLocaleString() : "N/A"}</p>
                 </div>
 
                 {/* Product 2 Header */}
@@ -375,24 +374,22 @@ export default function ComparisonBanner() {
                         VS
                     </div>
                     <div className={`w-full max-w-[200px] flex items-center justify-center transition-all duration-300 ${isScrolled ? 'h-12 md:h-16 mb-1' : 'h-32 md:h-40 mb-4'}`}>
-                        <SafeImage src={p2.image} alt={p2.name} className="h-full object-contain mix-blend-multiply" />
+                        <SafeImage src={p2.Image} alt={p2.Product_Name} className="h-full object-contain mix-blend-multiply" />
                     </div>
-                    {!isScrolled && <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-1 transition-all">{p2.brand}</p>}
-                    <h3 className={`font-bold text-gray-900 transition-all duration-300 ${isScrolled ? 'text-xs md:text-sm line-clamp-1 h-auto mb-1' : 'text-sm md:text-base line-clamp-2 mb-2 h-10 md:h-12'}`}>{p2.name}</h3>
-                    <p className={`text-gray-900 font-bold transition-all duration-300 ${isScrolled ? 'text-sm mb-1' : 'text-xl mb-4'}`}>₹{p2.price ? p2.price.toLocaleString() : "N/A"}</p>
+                    {!isScrolled && <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-1 transition-all">{p2.Brand}</p>}
+                    <h3 className={`font-bold text-gray-900 transition-all duration-300 ${isScrolled ? 'text-xs md:text-sm line-clamp-1 h-auto mb-1' : 'text-sm md:text-base line-clamp-2 mb-2 h-10 md:h-12'}`}>{p2.Product_Name}</h3>
+                    <p className={`text-gray-900 font-bold transition-all duration-300 ${isScrolled ? 'text-sm mb-1' : 'text-xl mb-4'}`}>₹{p2.Selling_Price ? p2.Selling_Price.toLocaleString() : "N/A"}</p>
                 </div>
               </div>
 
-              {/* Data Table (Spreadsheet Style) */}
+              {/* Data Table */}
               <div className="w-full">
                  {COMPARISON_SCHEMA.map((section, idx) => (
                     <div key={idx} className="mb-8">
-                        {/* Section Title */}
                         <div className="bg-gray-50 px-4 py-3 border-y border-gray-200 mb-2">
                             <h4 className="font-bold text-gray-900 text-sm">{section.section}</h4>
                         </div>
                         
-                        {/* Rows */}
                         <div className="flex flex-col">
                             {section.fields.map((field, fIdx) => {
                                 const val1 = getValue(p1, field.key);
@@ -430,7 +427,7 @@ export default function ComparisonBanner() {
 
   return (
     <>
-      {/* TRIGGER BANNER (Main Page View) */}
+      {/* TRIGGER BANNER */}
       <section className="w-full bg-white py-20 md:py-28 relative font-sans border-y border-gray-200 overflow-hidden">
          <div className="max-w-[1200px] mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-12 bg-gray-50 p-10 md:p-16 rounded-[2rem] relative z-10">
              <div className="max-w-xl text-center md:text-left z-20">
@@ -452,23 +449,18 @@ export default function ComparisonBanner() {
                  </button>
              </div>
              
-             {/* NAYA: Dynamic Visual Graphics Images replacing abstract ones */}
              <div className="flex flex-row items-center justify-center gap-2 md:gap-6 relative w-full max-w-sm z-10 mt-10 md:mt-0">
-                 {/* Product 1 */}
                  <div className="w-32 h-40 md:w-44 md:h-56 bg-white border-4 border-white shadow-xl rounded-2xl flex flex-col items-center justify-center overflow-hidden transform -rotate-6 hover:rotate-0 hover:scale-105 transition-all duration-300 z-10 relative">
-                    {/* Yahan tum apne wow_shop ke Cloudinary images ka link direct daal sakte ho test karne ke liye */}
                     <img src={categoryImages["Refrigerators"]} alt="Option A" className="w-full h-full object-cover bg-gray-100" />
                     <div className="absolute bottom-0 w-full bg-gradient-to-t from-black/60 to-transparent p-2 md:p-3 pt-8">
                        <p className="text-white text-[8px] md:text-[10px] font-bold tracking-wider">OPTION A</p>
                     </div>
                  </div>
                  
-                 {/* VS Badge */}
                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold text-xs md:text-sm z-30 shadow-lg border-2 md:border-4 border-gray-50">
                      VS
                  </div>
                  
-                 {/* Product 2 */}
                  <div className="w-32 h-40 md:w-44 md:h-56 bg-white border-4 border-white shadow-xl rounded-2xl flex flex-col items-center justify-center overflow-hidden transform rotate-6 hover:rotate-0 hover:scale-105 transition-all duration-300 z-20 mt-8 md:mt-16 relative">
                     <img src={categoryImages["Chimneys"]} alt="Option B" className="w-full h-full object-cover bg-gray-100" />
                     <div className="absolute bottom-0 w-full bg-gradient-to-t from-black/60 to-transparent p-2 md:p-3 pt-8">
@@ -489,7 +481,6 @@ export default function ComparisonBanner() {
             transition={{ duration: 0.3 }}
             className="fixed inset-0 z-[100] bg-white flex flex-col font-sans overflow-hidden"
           >
-            {/* Minimal Header */}
             <div className="h-16 md:h-20 border-b border-gray-200 flex items-center justify-between px-4 md:px-8 bg-white shrink-0 z-50">
                 <div className="flex items-center gap-4">
                     {step > 1 && (
@@ -500,7 +491,6 @@ export default function ComparisonBanner() {
                     <span className="text-gray-900 font-bold text-lg md:text-xl">Compare</span>
                 </div>
                 
-                {/* Progress Indicator */}
                 <div className="hidden md:flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                     <span className={step >= 1 ? "text-gray-900" : ""}>1. Category</span>
                     <ChevronRight className="w-3 h-3" />
@@ -514,7 +504,6 @@ export default function ComparisonBanner() {
                 </button>
             </div>
 
-            {/* Scrollable Body - NAYA: yahan onScroll={handleScroll} add kiya hai */}
             <div className="flex-1 overflow-y-auto hide-scrollbar relative" onScroll={handleScroll}>
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-full">

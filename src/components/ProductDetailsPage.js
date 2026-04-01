@@ -47,7 +47,8 @@ export default function ProductDetailsPage() {
         const data = res.data;
         setProduct(data);
         
-        let initialImg = data.image;
+        // 🔥 CHANGE: data.image -> data.Image
+        let initialImg = data.Image;
         if (Array.isArray(initialImg)) {
             initialImg = initialImg.length > 0 ? initialImg[0] : "";
         }
@@ -59,8 +60,9 @@ export default function ProductDetailsPage() {
         
         setMainImage(initialImg);
 
-        if (data.category) {
-            const relatedRes = await axios.get(`${BACKEND_URL}/api/products?category=${encodeURIComponent(data.category)}`);
+        // 🔥 CHANGE: data.category -> data.Category
+        if (data.Category) {
+            const relatedRes = await axios.get(`${BACKEND_URL}/api/products?category=${encodeURIComponent(data.Category)}`);
             setSimilarProducts(relatedRes.data.filter(p => p._id !== id));
         }
       } catch (err) {
@@ -100,7 +102,6 @@ export default function ProductDetailsPage() {
     }
   };
 
-  // 🔥 ZOOM LOGIC: Mouse ke hisaab se image ko move karna
   const handleMouseMove = (e) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - left) / width) * 100;
@@ -117,8 +118,19 @@ export default function ProductDetailsPage() {
   
   if (!product) return <div className="h-screen flex items-center justify-center text-gray-500 tracking-widest uppercase font-bold">Product Not Found</div>;
 
-  const galleryImages = Array.isArray(product.image) ? product.image : [product.image];
+  // 🔥 CHANGE: product.image -> product.Image
+  const galleryImages = Array.isArray(product.Image) ? product.Image : [product.Image];
   const customEase = [0.16, 1, 0.3, 1];
+
+  // 🔥 NAYA FEATURE: Excel columns se Specs banaye hain taaki UI na toote
+  const specList = [
+      { label: "Material/Finish", value: product.material_finish },
+      { label: "Power", value: product.power_consumption },
+      { label: "Dimensions", value: product.Dimensions_cm },
+      { label: "Capacity", value: product.Capacity },
+      { label: "Installation", value: product.Installation_Type },
+      { label: "Warranty", value: product.Warranty_Details }
+  ].filter(s => s.value && s.value.toLowerCase() !== "not specified"); // Khali data hide kar dega
 
   return (
     <div className="min-h-screen bg-white font-sans pt-28 pb-28 md:pb-16 selection:bg-amber-500 selection:text-white">
@@ -128,14 +140,16 @@ export default function ProductDetailsPage() {
          <nav className="flex items-center gap-2 text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-gray-400">
             <button onClick={() => navigate('/')} className="hover:text-amber-600 transition-colors flex items-center gap-1"><Home className="w-3 h-3"/> Home</button>
             <span>/</span>
+            {/* 🔥 CHANGE: product.category -> product.Category */}
             <button 
-              onClick={() => navigate(`/products?category=${encodeURIComponent(product.category)}`)} 
+              onClick={() => navigate(`/products?category=${encodeURIComponent(product.Category)}`)} 
               className="hover:text-amber-600 transition-colors"
             >
-              {product.category}
+              {product.Category}
             </button>
             <span>/</span>
-            <span className="text-gray-900 line-clamp-1">{product.model || "Details"}</span>
+            {/* 🔥 CHANGE: product.model -> product.Model_Number */}
+            <span className="text-gray-900 line-clamp-1">{product.Model_Number || "Details"}</span>
          </nav>
       </div>
 
@@ -145,20 +159,12 @@ export default function ProductDetailsPage() {
         <div className="lg:col-span-7 space-y-6 lg:sticky lg:top-28">
             <motion.div 
               initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, ease: customEase }}
-              // 🔥 FIX 1: Auto Width & Height, Container content ke hisaab se adjust hoga
               className="relative w-full md:w-fit mx-auto bg-[#F5F5F7] rounded-3xl overflow-hidden flex items-center justify-center cursor-crosshair border border-gray-100/50 shadow-sm"
               onMouseMove={handleMouseMove}
               onMouseEnter={() => setIsZoomed(true)}
               onMouseLeave={() => setIsZoomed(false)}
             >
-                {product.tag && (
-                    <span className="absolute top-6 left-6 bg-gray-900 text-white text-[9px] font-bold px-4 py-1.5 uppercase tracking-widest z-20 rounded shadow-md">
-                        {product.tag}
-                    </span>
-                )}
-                
                 <AnimatePresence mode="wait">
-                    {/* 🔥 FIX 2: Custom Zoom Effect Apply Kiya */}
                     <motion.img 
                         key={mainImage}
                         initial={{ opacity: 0, filter: "blur(4px)" }} 
@@ -166,8 +172,7 @@ export default function ProductDetailsPage() {
                         exit={{ opacity: 0 }} 
                         transition={{ duration: 0.4 }}
                         src={mainImage} 
-                        alt={product.name} 
-                        // Image ka size maintain karne ke liye mix-blend aur max-height lagaya hai
+                        alt={product.Product_Name} // 🔥 CHANGE
                         className="w-auto h-auto max-w-full max-h-[70vh] object-contain mix-blend-multiply transition-transform duration-200 ease-out p-8" 
                         style={{
                             transform: isZoomed ? 'scale(2.5)' : 'scale(1)',
@@ -204,15 +209,19 @@ export default function ProductDetailsPage() {
             
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: customEase }}>
                 <div className="flex justify-between items-start mb-4">
-                  <span className="text-amber-600 text-[10px] font-bold uppercase tracking-[0.3em]">{product.brand || "Premium Selection"}</span>
-                  <span className="bg-gray-100 text-gray-500 text-[9px] px-2 py-1 rounded font-bold tracking-widest uppercase">Model: {product.model || "N/A"}</span>
+                  {/* 🔥 CHANGE: product.brand -> product.Brand */}
+                  <span className="text-amber-600 text-[10px] font-bold uppercase tracking-[0.3em]">{product.Brand || "Premium Selection"}</span>
+                  {/* 🔥 CHANGE: product.model -> product.Model_Number */}
+                  <span className="bg-gray-100 text-gray-500 text-[9px] px-2 py-1 rounded font-bold tracking-widest uppercase">Model: {product.Model_Number || "N/A"}</span>
                 </div>
                 
-                <h1 className="text-4xl md:text-5xl font-serif text-gray-900 mb-6 leading-[1.15] tracking-tight">{product.name}</h1>
+                {/* 🔥 CHANGE: product.name -> product.Product_Name */}
+                <h1 className="text-4xl md:text-5xl font-serif text-gray-900 mb-6 leading-[1.15] tracking-tight">{product.Product_Name}</h1>
                 
                 <div className="flex items-center gap-4 mb-6">
                     <div className="flex items-center bg-gray-900 text-white px-3 py-1.5 rounded text-xs font-bold gap-1.5 shadow-sm">
-                        {product.rating || 5.0} <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        {/* 🔥 CHANGE: product.rating -> product.average_rating */}
+                        {product.average_rating || 5.0} <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                     </div>
                     <span className="text-gray-400 text-[11px] font-medium uppercase tracking-widest border-b border-transparent">Verified Product</span>
                 </div>
@@ -220,19 +229,20 @@ export default function ProductDetailsPage() {
 
             {/* PRICE SECTION */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1, ease: customEase }} className="mb-8">
-                <span className="text-5xl lg:text-5xl font-serif font-medium text-gray-900 leading-none tracking-tight">₹{product.price?.toLocaleString()}</span>
+                {/* 🔥 CHANGE: product.price -> product.Selling_Price */}
+                <span className="text-5xl lg:text-5xl font-serif font-medium text-gray-900 leading-none tracking-tight">₹{product.Selling_Price?.toLocaleString()}</span>
                 <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-4 mb-6">Taxes Included • Subject to site feasibility</p>
             </motion.div>
 
-            {/* 🔥 FIX 3: TECHNICAL SPECS UPFRONT (Directly visible before Add To Cart) */}
-            {product.specs && (
+            {/* 🔥 UPDATED TECHNICAL SPECS GRID (Mapped from Excel Columns) */}
+            {specList.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2, ease: customEase }} className="mb-10 bg-[#FAFAFA] p-6 rounded-2xl border border-gray-100/80">
                     <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-900 mb-5 border-b border-gray-200 pb-3">Key Specifications</h3>
                     <div className="grid grid-cols-2 gap-y-5 gap-x-6">
-                        {Object.entries(product.specs).map(([key, value], idx) => (
+                        {specList.map((spec, idx) => (
                             <div key={idx} className="flex flex-col">
-                                <span className="text-gray-400 text-[9px] font-bold uppercase tracking-widest block mb-1">{key}</span>
-                                <span className="text-gray-900 text-sm font-semibold">{value}</span>
+                                <span className="text-gray-400 text-[9px] font-bold uppercase tracking-widest block mb-1">{spec.label}</span>
+                                <span className="text-gray-900 text-sm font-semibold">{spec.value}</span>
                             </div>
                         ))}
                     </div>
@@ -268,11 +278,12 @@ export default function ProductDetailsPage() {
                  </button>
             </motion.div>
 
-            {/* DESCRIPTION SECTION (Permanent visibility instead of Tabs) */}
+            {/* DESCRIPTION SECTION */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4, ease: customEase }} className="mb-12">
                <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-900 mb-6">The Details</h3>
                <p className="text-gray-600 leading-relaxed text-[14px] font-light mb-6">
-                   {product.description || "Discover unparalleled luxury and precision with this masterpiece. Engineered to elevate your culinary experience, blending seamless design with cutting-edge technology."}
+                   {/* 🔥 CHANGE: product.description -> product.Technical_Specifications */}
+                   {product.Technical_Specifications || "Discover unparalleled luxury and precision with this masterpiece. Engineered to elevate your culinary experience, blending seamless design with cutting-edge technology."}
                </p>
                <ul className="space-y-4">
                    <li className="flex items-start gap-3">
@@ -321,7 +332,8 @@ export default function ProductDetailsPage() {
              
              <div ref={sliderRef} className="flex overflow-x-auto gap-6 pb-8 hide-scrollbar scroll-smooth snap-x snap-mandatory">
                 {similarProducts.map((item, idx) => {
-                    let simImg = item.image;
+                    // 🔥 CHANGE: item.image -> item.Image
+                    let simImg = item.Image;
                     if (Array.isArray(simImg)) simImg = simImg.length > 0 ? simImg[0] : "";
                     
                     const cleanPath = typeof simImg === 'string' ? simImg.replace(/\\/g, '/') : '';
@@ -334,12 +346,13 @@ export default function ProductDetailsPage() {
                             className="min-w-[280px] md:min-w-[320px] snap-start cursor-pointer border border-gray-100 rounded-3xl p-6 hover:border-amber-300 hover:shadow-2xl transition-all duration-500 bg-[#FAFAFA] group"
                         >
                             <div className="h-40 md:h-56 mb-6 flex items-center justify-center">
-                                <img src={similarImgUrl} alt={item.name} className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700"/>
+                                <img src={similarImgUrl} alt={item.Product_Name} className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700"/>
                             </div>
-                            <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 mb-2">{item.brand}</p>
-                            <h4 className="font-bold text-gray-900 text-sm line-clamp-1 group-hover:text-amber-600 transition-colors">{item.name}</h4>
+                            {/* 🔥 CHANGE: item.brand -> item.Brand, item.name -> item.Product_Name, item.price -> item.Selling_Price */}
+                            <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 mb-2">{item.Brand}</p>
+                            <h4 className="font-bold text-gray-900 text-sm line-clamp-1 group-hover:text-amber-600 transition-colors">{item.Product_Name}</h4>
                             <div className="flex items-end gap-3 mt-4">
-                                <span className="text-lg font-serif font-medium text-gray-900">₹{item.price.toLocaleString()}</span>
+                                <span className="text-lg font-serif font-medium text-gray-900">₹{item.Selling_Price?.toLocaleString()}</span>
                             </div>
                         </div>
                     )

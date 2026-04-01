@@ -157,15 +157,18 @@ export default function ChooseLayout() {
     if (!zoneName) return [];
     let search = zoneName.toLowerCase();
 
+    // 🔥 FIX 1: Exact mapping for Database Categories (Excel Data)
     if (search.includes('refrigerator') || search.includes('fridge')) search = 'refrigerator';
     if (search.includes('oven') || search.includes('microwave')) search = 'oven';
     if (search.includes('hob') || search.includes('cooktop')) search = 'hob';
+    if (search.includes('chimney') || search.includes('hood')) search = 'hood'; // Added this mapping for Chimneys
     if (search.includes('washing')) search = 'washing';
     if (search.includes('dish')) search = 'dishwasher';
 
     return dbProducts.filter(p => {
-        const cat = p.category ? p.category.toLowerCase() : "";
-        const name = p.name ? p.name.toLowerCase() : "";
+        // 🔥 FIX 2: Replaced p.category with p.Category and p.name with p.Product_Name
+        const cat = p.Category ? p.Category.toLowerCase() : "";
+        const name = p.Product_Name ? p.Product_Name.toLowerCase() : "";
         return cat.includes(search) || name.includes(search);
     });
   };
@@ -239,7 +242,9 @@ export default function ChooseLayout() {
 
   const activeZoneName = activeZone !== null ? selectedLayout.positions[activeZone].name : "";
   const availableProducts = activeZone !== null ? getZoneProducts(activeZoneName) : [];
-  const totalPrice = Object.values(kitchenSelections).reduce((acc, i) => acc + (i.price || 0), 0);
+  
+  // 🔥 FIX 3: Calculate total price properly with Selling_Price
+  const totalPrice = Object.values(kitchenSelections).reduce((acc, i) => acc + (i.Selling_Price || 0), 0);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] font-sans overflow-x-hidden">
@@ -339,13 +344,15 @@ export default function ChooseLayout() {
                         className="group relative flex items-center gap-5 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all cursor-pointer overflow-hidden"
                     >
                         <div className="w-24 h-24 bg-white rounded-xl flex-shrink-0 flex items-center justify-center p-3 shadow-inner group-hover:scale-105 transition-transform">
-                            <img src={getImgUrl(prod.image)} alt={prod.name} className="max-h-full max-w-full object-contain mix-blend-multiply" />
+                            {/* 🔥 FIX 4: Replace prod.image with prod.Image */}
+                            <img src={getImgUrl(prod.Image)} alt={prod.Product_Name} className="max-h-full max-w-full object-contain mix-blend-multiply" />
                         </div>
                         
                         <div className="flex-1 min-w-0 py-2">
-                            <p className="text-[9px] text-amber-500 uppercase tracking-widest font-bold mb-1">{prod.brand || 'Premium'}</p>
-                            <h4 className="text-white font-medium text-sm leading-snug line-clamp-2 mb-2 group-hover:text-amber-400 transition-colors">{prod.name}</h4>
-                            <span className="text-white font-serif font-bold tracking-wide">₹{prod.price?.toLocaleString()}</span>
+                            {/* 🔥 FIX 5: Replace prod.brand with prod.Brand and prod.name with prod.Product_Name */}
+                            <p className="text-[9px] text-amber-500 uppercase tracking-widest font-bold mb-1">{prod.Brand || 'Premium'}</p>
+                            <h4 className="text-white font-medium text-sm leading-snug line-clamp-2 mb-2 group-hover:text-amber-400 transition-colors">{prod.Product_Name}</h4>
+                            <span className="text-white font-serif font-bold tracking-wide">₹{prod.Selling_Price?.toLocaleString()}</span>
                         </div>
 
                         <div className="absolute right-4 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
@@ -427,16 +434,16 @@ export default function ChooseLayout() {
                             {isSelected ? (
                                 <>
                                     <div className="w-full h-40 mb-6 relative flex items-center justify-center">
-                                        <img src={getImgUrl(item.image)} alt={item.name} className="max-h-full max-w-full object-contain mix-blend-multiply drop-shadow-xl group-hover:scale-110 transition-transform duration-500" />
+                                        <img src={getImgUrl(item.Image)} alt={item.Product_Name} className="max-h-full max-w-full object-contain mix-blend-multiply drop-shadow-xl group-hover:scale-110 transition-transform duration-500" />
                                     </div>
                                     
                                     <div className="w-full mt-auto">
-                                        <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-1">{item.brand || 'Premium'}</p>
+                                        <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-1">{item.Brand || 'Premium'}</p>
                                         <h3 className="text-sm font-bold text-gray-900 line-clamp-2 mb-3 leading-snug">
-                                            {item.name}
+                                            {item.Product_Name}
                                         </h3>
                                         <div className="flex items-center justify-between mt-4">
-                                            <p className="text-lg text-gray-900 font-serif font-bold">₹{item.price?.toLocaleString()}</p>
+                                            <p className="text-lg text-gray-900 font-serif font-bold">₹{item.Selling_Price?.toLocaleString()}</p>
                                             <button 
                                                 onClick={() => handleViewDetails(item)}
                                                 className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-amber-500 hover:text-white transition-colors"

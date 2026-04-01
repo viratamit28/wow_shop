@@ -9,29 +9,31 @@ const upload = require('../middleware/uploadMiddleware');
 // =========================================================
 router.get('/', async (req, res) => {
   try {
-    // 1. Frontend se aane wale dono filters ko pakdo
-    const { category, type, search } = req.query; 
+    // 🔥 FIX 1: 'brand' ko bhi query se extract kar liya hai
+    const { category, type, search, brand } = req.query; 
     let query = {};
 
-    // 2. SEARCH LOGIC (Agar user kuch search bar mein type kare)
     if (search) {
-      query.name = { $regex: search, $options: "i" }; // Name me dhoondo (Case insensitive)
+      query.Product_Name = { $regex: search, $options: "i" }; 
     }
 
-    // 3. CATEGORY LOGIC (Exact match, case-insensitive)
+    // 🔥 FIX 2: '^' aur '$' (Exact Match) hata diya. 
+    // Excel data mein extra spaces ho sakte hain, isliye Partial Match best hai.
     if (category) {
-       // Ab hardcoded logic nahi chahiye, direct match karenge
-       query.category = { $regex: new RegExp("^" + category + "$", "i") };
+       query.Category = { $regex: category, $options: "i" };
     }
 
-    // 4. TYPE LOGIC (Jaise 'Ovens', 'Microwaves' jo Mega Menu se aayega)
     if (type) {
-       query.type = { $regex: new RegExp("^" + type + "$", "i") };
+       query.Category = { $regex: type, $options: "i" };
+    }
+
+    // 🔥 FIX 3: Backend mein hi Brand filtering add kar di (Brand Partners page ke liye)
+    if (brand) {
+       query.Brand = { $regex: brand, $options: "i" };
     }
 
     console.log("🔍 [DEBUG] Current Query Filters:", query);
 
-    // Database se data mangwao
     const products = await Product.find(query);
     res.json(products);
 
@@ -42,36 +44,27 @@ router.get('/', async (req, res) => {
 });
 
 // =========================================================
-// ROUTE 2: ADD SINGLE PRODUCT (FIXED FOR SCHEMA COMPATIBILITY)
+// ROUTE 2: ADD SINGLE PRODUCT (FIXED FOR NEW EXCEL SCHEMA)
 // POST: /api/products/add
 // =========================================================
 router.post('/add', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "Image is required" });
 
-    // 🔥 BUG FIX 1: Schema me 'model' required hai, toh validation lagani padegi
-    if (!req.body.model) {
+    // Frontend abhi purane form inputs bhej raha hoga, usko handle karte hain
+    if (!req.body.model && !req.body.Model_Number) {
         return res.status(400).json({ message: "Model number is required" });
     }
 
-    let parsedSpecs = {};
-    if (req.body.specs) {
-        try { parsedSpecs = JSON.parse(req.body.specs); } catch (e) { console.log("Specs parsing error"); }
-    }
-
     const product = new Product({
-        name: req.body.name,
-        model: req.body.model, // ✅ ADDED: Model number (Unique)
-        brand: req.body.brand,
-        category: req.body.category,
-        type: req.body.type || req.body.category, // ✅ FIXED: Frontend se aane wala type set hoga
-        price: req.body.price,
-        description: req.body.description,
-        
-        // 🔥 BUG FIX 2: Schema me image array [String] hai, isliye isko array me daalna padega
-        image: [req.file.path], 
-        
-        specs: parsedSpecs
+        Product_Name: req.body.name || req.body.Product_Name,
+        Model_Number: req.body.model || req.body.Model_Number, 
+        Brand: req.body.brand || req.body.Brand || "Generic",
+        Category: req.body.type || req.body.category || req.body.Category, 
+        MRP: req.body.price || req.body.MRP,
+        Selling_Price: req.body.price || req.body.Selling_Price,
+        Technical_Specifications: req.body.description || req.body.Technical_Specifications,
+        Image: [req.file.path] 
     });
 
     const newProduct = await product.save();
@@ -97,7 +90,7 @@ router.get('/:id', async (req, res) => {
         return res.status(404).json({ message: "Product not found" });
     }
     
-    console.log("✅ [DEBUG] Product Found:", product.name);
+    console.log("✅ [DEBUG] Product Found:", product.Product_Name);
     res.json(product);
 
   } catch (err) {
