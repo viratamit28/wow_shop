@@ -105,13 +105,13 @@ export function Footer() {
               <li>Building your dream home?</li>
               <li className="mb-2">Call our experts.</li>
               <li>
-                <a href="tel:+9118001234567" className={`flex items-center gap-2 text-white text-base tracking-wide transition-colors ${accentHover}`}>
-                  <Phone className="w-4 h-4 text-amber-500" /> +91 1800 123 4567
+                <a href="tel:+919156073434" className={`flex items-center gap-2 text-white text-base tracking-wide transition-colors ${accentHover}`}>
+                  <Phone className="w-4 h-4 text-amber-500" /> +91 91560 73434 
                 </a>
               </li>
               <li className="pt-1">
-                <a href="mailto:concierge@wowshopping.com" className={`flex items-center gap-2 transition-colors ${accentHover}`}>
-                  <Mail className="w-4 h-4 text-amber-500" /> concierge@wowshopping.com
+                <a href="mailto:retailwowshopping@gmail.com" className={`flex items-center gap-2 transition-colors ${accentHover}`}>
+                  <Mail className="w-4 h-4 text-amber-500" /> retailwowshopping@gmail.com
                 </a>
               </li>
             </ul>
